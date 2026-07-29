@@ -20,9 +20,7 @@ import {
   serverTimestamp
 } from "firebase/firestore";
 
-import appletConfig from "./firebase-applet-config.json";
-
-const firebaseConfig = appletConfig || {
+const firebaseConfig = {
   apiKey: "AIzaSyDemoPlaceholderKeyForStudioApp123",
   authDomain: "vivid-studio-demo.firebaseapp.com",
   projectId: "vivid-studio-demo",
@@ -30,6 +28,14 @@ const firebaseConfig = appletConfig || {
   messagingSenderId: "1234567890",
   appId: "1:1234567890:web:abcdef123456"
 };
+
+// Async load config if present
+fetch("./firebase-applet-config.json")
+  .then((res) => (res.ok ? res.json() : null))
+  .then((data) => {
+    if (data && data.apiKey) Object.assign(firebaseConfig, data);
+  })
+  .catch(() => {});
 
 const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
 export const auth = getAuth(app);

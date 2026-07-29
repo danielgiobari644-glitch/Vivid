@@ -314,6 +314,8 @@ app.get("/api/templates", (_req, res) => {
 
 // START EXPRESS SERVER & VITE INTEGRATION
 async function startServer() {
+  app.use(express.static(process.cwd()));
+
   if (process.env.NODE_ENV !== "production") {
     const vite = await createViteServer({
       server: { middlewareMode: true },
