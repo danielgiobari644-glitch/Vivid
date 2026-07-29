@@ -1,0 +1,93 @@
+{
+  "entities": {
+    "Project": {
+      "title": "Project",
+      "description": "Video project created by a user containing slideshow scenes, text tracks, audio narration, and settings.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Unique identifier for the project." },
+        "userId": { "type": "string", "description": "Firebase Auth UID of the owner." },
+        "title": { "type": "string", "description": "Name of the video project.", "maxLength": 120 },
+        "description": { "type": "string", "description": "Description of the project.", "maxLength": 500 },
+        "aspectRatio": { "type": "string", "description": "16:9, 9:16, 1:1, 4:5, or 3:2" },
+        "fps": { "type": "number", "description": "30 or 60 fps" },
+        "backgroundColor": { "type": "string", "description": "Hex background color e.g. #000000" },
+        "slides": { "type": "array", "description": "List of slide images and animation configs" },
+        "textTracks": { "type": "array", "description": "List of text overlay objects with timing and styling" },
+        "audioTrack": { "type": "object", "description": "Audio configuration object for background music and voice" },
+        "duration": { "type": "number", "description": "Total duration in seconds" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "userId", "title", "aspectRatio", "slides"]
+    },
+    "Template": {
+      "title": "Template",
+      "description": "Pre-made video templates for YouTube Shorts, TikTok, Reels, Promos, etc.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "title": { "type": "string", "maxLength": 100 },
+        "category": { "type": "string" },
+        "description": { "type": "string", "maxLength": 300 },
+        "thumbnailUrl": { "type": "string" },
+        "aspectRatio": { "type": "string" },
+        "slides": { "type": "array" },
+        "textTracks": { "type": "array" },
+        "audioTrack": { "type": "object" },
+        "isSystem": { "type": "boolean" }
+      },
+      "required": ["id", "title", "category", "aspectRatio", "slides"]
+    },
+    "SavedVideo": {
+      "title": "SavedVideo",
+      "description": "Metadata for rendered/exported videos.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "projectId": { "type": "string" },
+        "title": { "type": "string", "maxLength": 120 },
+        "videoUrl": { "type": "string" },
+        "thumbnailUrl": { "type": "string" },
+        "duration": { "type": "number" },
+        "resolution": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "userId", "title", "videoUrl"]
+    },
+    "UserSettings": {
+      "title": "UserSettings",
+      "description": "User preferences for default studio settings.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "theme": { "type": "string", "enum": ["dark", "light"] },
+        "defaultAspectRatio": { "type": "string" },
+        "defaultResolution": { "type": "string" },
+        "defaultTransition": { "type": "string" },
+        "defaultSlideDuration": { "type": "number" }
+      },
+      "required": ["id", "userId"]
+    }
+  },
+  "firestore": {
+    "projects/{projectId}": {
+      "schema": { "$ref": "#/entities/Project" },
+      "description": "Collection of video projects."
+    },
+    "templates/{templateId}": {
+      "schema": { "$ref": "#/entities/Template" },
+      "description": "Collection of public or user templates."
+    },
+    "saved_videos/{videoId}": {
+      "schema": { "$ref": "#/entities/SavedVideo" },
+      "description": "Collection of user exported videos."
+    },
+    "user_settings/{settingId}": {
+      "schema": { "$ref": "#/entities/UserSettings" },
+      "description": "User preferences documents."
+    }
+  }
+}

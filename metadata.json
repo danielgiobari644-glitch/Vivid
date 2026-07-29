@@ -1,0 +1,6 @@
+{
+  "name": "Vivid Studio - AI Image to Video Creator",
+  "description": "Professional AI-powered image-to-video creation suite with multi-track timeline, Ken Burns effects, custom transitions, AI script & voice narration, and deployable Python backend.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
