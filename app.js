@@ -181,6 +181,55 @@ function renderUserUI() {
   }
 }
 
+// Helper for resilient API calls with client-side fallback (for static GitHub Pages or server)
+async function fetchApiOrFallback(url, options = {}) {
+  try {
+    const res = await fetch(url, options);
+    if (res.ok) {
+      return await res.json();
+    }
+  } catch (err) {
+    // Network or static host error
+  }
+  return null;
+}
+
+// Fallback AI script generator when backend endpoint is not reachable (e.g., static hosting)
+function generateFallbackScript(prompt, numScenes) {
+  const scenes = [];
+  const words = prompt.split(" ");
+  const keywords = words.filter(w => w.length > 3).join(", ") || prompt;
+  
+  for (let i = 0; i < numScenes; i++) {
+    scenes.push({
+      title: `Scene ${i + 1}: ${prompt.slice(0, 24)}...`,
+      imagePrompt: `${keywords} aesthetic cinematic visual style, scene ${i + 1}`,
+      duration: 4,
+      animationType: i % 2 === 0 ? "zoom-in" : "pan-right",
+      transitionType: "fade",
+      caption: `Key Insight #${i + 1} for ${prompt}`,
+      voiceScript: `Welcome to scene ${i + 1}. Here is a key insight regarding ${prompt}.`
+    });
+  }
+  
+  return {
+    title: prompt.length > 30 ? prompt.slice(0, 30) + "..." : prompt,
+    scenes,
+    themeColor: "#0d0e15"
+  };
+}
+
+// Fallback image provider
+function getFallbackImage(prompt, index = 0) {
+  const stockImages = [
+    "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=1200&q=80",
+    "https://images.unsplash.com/photo-1579783900882-c0d3dad7b119?auto=format&fit=crop&w=1200&q=80",
+    "https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&w=1200&q=80",
+    "https://images.unsplash.com/photo-1550745165-9bc0b252726f?auto=format&fit=crop&w=1200&q=80",
+    "https://images.unsplash.com/photo-1470071459604-3b5ec3a7fe05?auto=format&fit=crop&w=1200&q=80"
+  ];
+  return stockImages[index % stockImages.length];
+}
 // AI Generator
 function setupGeneratorForm() {
   const form = document.getElementById("ai-generator-form");
@@ -202,16 +251,19 @@ function setupGeneratorForm() {
       statusBox.textContent = "✨ Directing video scenes with Gemini AI...";
     }
 
-    try {
-      const res = await fetch("/api/ai/generate-script", {
+  try {
+      let data = await fetchApiOrFallback("./api/ai/generate-script", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ prompt, aspectRatio, style, numScenes })
       });
-      const data = await res.json();
 
-      if (!data.success || !data.script) {
-        throw new Error(data.error || "Failed to generate script");
+      if (!data || !data.success || !data.script) {
+        // Fallback to client generator if static hosted
+        data = {
+          success: true,
+          script: generateFallbackScript(prompt, numScenes)
+        };
       }
 
       if (statusBox) statusBox.textContent = "🖼️ Generating AI visuals for each slide...";
@@ -224,20 +276,15 @@ function setupGeneratorForm() {
       let currentTime = 0;
       for (let i = 0; i < script.scenes.length; i++) {
         const sc = script.scenes[i];
-        let imgUrl = "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=1200&q=80";
+        let imgUrl = getFallbackImage(sc.imagePrompt || prompt, i);
 
-        try {
-          const imgRes = await fetch("/api/ai/generate-image", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ prompt: sc.imagePrompt, aspectRatio })
-          });
-          const imgData = await imgRes.json();
-          if (imgData.success && imgData.imageUrl) {
-            imgUrl = imgData.imageUrl;
-          }
-        } catch {
-          // fallback to stock
+        const imgData = await fetchApiOrFallback("./api/ai/generate-image", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ prompt: sc.imagePrompt, aspectRatio })
+        });
+        if (imgData && imgData.success && imgData.imageUrl) {
+          imgUrl = imgData.imageUrl;
         }
 
         newSlides.push({
@@ -346,24 +393,28 @@ function setupEditorControls() {
       if (!activeSlide || !activeSlide.voiceScript) return;
 
       ttsBtn.textContent = "🎙️ Synthesizing Voice...";
-      try {
-        const res = await fetch("/api/ai/tts", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ text: activeSlide.voiceScript })
-        });
-        const data = await res.json();
-        if (data.success && data.audioBase64) {
-          const audio = new Audio(`data:${data.mimeType};base64,${data.audioBase64}`);
-          audio.play();
-          ttsBtn.textContent = "🔊 Playing Audio";
-        } else {
-          ttsBtn.textContent = "❌ TTS Failed";
-        }
-      } catch {
-        ttsBtn.textContent = "❌ TTS Error";
+      
+      const data = await fetchApiOrFallback("./api/ai/tts", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text: activeSlide.voiceScript })
+      });
+
+      if (data && data.success && data.audioBase64) {
+        const audio = new Audio(`data:${data.mimeType};base64,${data.audioBase64}`);
+        audio.play();
+        ttsBtn.textContent = "🔊 Playing Audio";
+      } else if ("speechSynthesis" in window) {
+        // Fallback Web Speech API (for static hosting)
+        window.speechSynthesis.cancel();
+        const utterance = new SpeechSynthesisUtterance(activeSlide.voiceScript);
+        utterance.rate = 1.0;
+        window.speechSynthesis.speak(utterance);
+        ttsBtn.textContent = "🔊 Speaking (Browser Web Voice)";
+      } else {
+        ttsBtn.textContent = "❌ TTS Unavailable";
       }
-      setTimeout(() => (ttsBtn.textContent = "🎙️ AI Voice Narration"), 2500);
+      setTimeout(() => (ttsBtn.textContent = "🎙️ AI Voice Narration"), 3000);
     });
   }
 }
@@ -645,20 +696,12 @@ const DEFAULT_TEMPLATES = [
 ];
 
 async function loadTemplates() {
-  try {
-    const res = await fetch("/api/templates");
-    if (res.ok) {
-      const data = await res.json();
-      if (data.success && data.templates) {
-        state.templates = data.templates;
-        renderTemplatesList();
-        return;
-      }
-    }
-  } catch {
-    // static host or offline
+  const data = await fetchApiOrFallback("./api/templates");
+  if (data && data.success && data.templates) {
+    state.templates = data.templates;
+  } else {
+    state.templates = DEFAULT_TEMPLATES;
   }
-  state.templates = DEFAULT_TEMPLATES;
   renderTemplatesList();
 }
 
