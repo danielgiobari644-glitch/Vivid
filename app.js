@@ -571,17 +571,95 @@ function setupPythonStudio() {
 }
 
 // Templates & Projects List
+const DEFAULT_TEMPLATES = [
+  {
+    id: "yt-shorts-1",
+    title: "YouTube Shorts Viral Intro",
+    category: "YouTube Shorts",
+    aspectRatio: "9:16",
+    thumbnail: "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=600&q=80",
+    description: "Punchy, fast-paced vertical video with dramatic zoom transitions.",
+    slides: [
+      {
+        id: "s1",
+        imageUrl: "https://images.unsplash.com/photo-1579783900882-c0d3dad7b119?auto=format&fit=crop&w=1200&q=80",
+        duration: 3,
+        animationType: "zoom-in",
+        transitionType: "slide-left",
+        backgroundColor: "#0d0e15",
+        caption: "TOP 3 SECRET TIPS",
+        voiceScript: "Here are top three secret productivity tips you must know."
+      },
+      {
+        id: "s2",
+        imageUrl: "https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&w=1200&q=80",
+        duration: 4,
+        animationType: "pan-right",
+        transitionType: "fade",
+        backgroundColor: "#0d0e15",
+        caption: "#1 FOCUS ON ONE TASK",
+        voiceScript: "Number one: eliminate all distractions and focus on single-tasking."
+      }
+    ]
+  },
+  {
+    id: "promo-landscape-1",
+    title: "Modern Tech Product Launch",
+    category: "Product Promo",
+    aspectRatio: "16:9",
+    thumbnail: "https://images.unsplash.com/photo-1526374965328-7f61d4dc18c5?auto=format&fit=crop&w=600&q=80",
+    description: "Clean landscape slideshow for tech product launches and promos.",
+    slides: [
+      {
+        id: "p1",
+        imageUrl: "https://images.unsplash.com/photo-1550745165-9bc0b252726f?auto=format&fit=crop&w=1200&q=80",
+        duration: 4,
+        animationType: "zoom-in",
+        transitionType: "fade",
+        backgroundColor: "#09090b",
+        caption: "Introducing Vivid AI",
+        voiceScript: "Experience the next evolution of AI video creation."
+      }
+    ]
+  },
+  {
+    id: "insta-square-1",
+    title: "Motivational Quote Reel",
+    category: "Social Media",
+    aspectRatio: "1:1",
+    thumbnail: "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=600&q=80",
+    description: "1:1 Square layout featuring inspiring quotes and aesthetic imagery.",
+    slides: [
+      {
+        id: "q1",
+        imageUrl: "https://images.unsplash.com/photo-1470071459604-3b5ec3a7fe05?auto=format&fit=crop&w=1200&q=80",
+        duration: 5,
+        animationType: "pan-left",
+        transitionType: "fade",
+        backgroundColor: "#18181b",
+        caption: "'Great things never came from comfort zones.'",
+        voiceScript: "Great things never came from comfort zones. Step into your potential today."
+      }
+    ]
+  }
+];
+
 async function loadTemplates() {
   try {
     const res = await fetch("/api/templates");
-    const data = await res.json();
-    if (data.success && data.templates) {
-      state.templates = data.templates;
-      renderTemplatesList();
+    if (res.ok) {
+      const data = await res.json();
+      if (data.success && data.templates) {
+        state.templates = data.templates;
+        renderTemplatesList();
+        return;
+      }
     }
   } catch {
-    // fallback
+    // static host or offline
   }
+  state.templates = DEFAULT_TEMPLATES;
+  renderTemplatesList();
 }
 
 function renderTemplatesList() {
