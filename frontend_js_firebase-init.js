@@ -44,6 +44,92 @@
     return 'http://localhost:8000';
   };
 
+  /**
+   * Make an authenticated API call to the GIODAI backend.
+   *
+   * Automatically attaches the current Firebase user's ID token as a
+   * Bearer Authorization header.  If the token is expired it will be
+   * refreshed first.  Unauthenticated users trigger an error.
+   *
+   * @param {string}  path   - API path relative to the backend root (e.g. '/api/generate').
+   * @param {object}  [opts] - Optional fetch options (method, headers, body, …).
+   * @returns {Promise<object>} Parsed JSON response body.
+   *
+   * @example
+   *   // GET request
+   *   const data = await window.apiCall('/api/models');
+   *
+   *   // POST request with JSON body
+   *   const result = await window.apiCall('/api/generate', {
+   *     method: 'POST',
+ *     body: JSON.stringify({ prompt: 'Hello world' }),
+   *   });
+   */
+  window.apiCall = async function (path, opts) {
+    if (typeof firebase === 'undefined' || !firebase.auth) {
+      throw new Error('Firebase Auth is not initialised yet.');
+    }
+
+    var user = firebase.auth().currentUser;
+    if (!user) {
+      throw new Error('User is not authenticated. Please sign in first.');
+    }
+
+    // Get a fresh ID token (refreshes automatically if expired)
+    var idToken = await user.getIdToken(/* forceRefresh */ false);
+
+    var baseUrl = window.getBackendUrl().replace(/\/+$/, '');
+    var url = baseUrl + path;
+
+    var fetchOpts = Object.assign(
+      {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer ' + idToken
+        }
+      },
+      opts || {}
+    );
+
+    // Merge caller-provided headers so they can override defaults
+    if (opts && opts.headers) {
+      fetchOpts.headers = Object.assign(
+        { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + idToken },
+        opts.headers
+      );
+    }
+
+    var response = await fetch(url, fetchOpts);
+
+    if (response.status === 401 || response.status === 403) {
+      // Token may have been revoked — force refresh and retry once
+      idToken = await user.getIdToken(/* forceRefresh */ true);
+      fetchOpts.headers['Authorization'] = 'Bearer ' + idToken;
+      response = await fetch(url, fetchOpts);
+    }
+
+    if (!response.ok) {
+      var errorBody;
+      try {
+        errorBody = await response.json();
+      } catch (_) {
+        errorBody = await response.text().catch(function () { return '(empty body)'; });
+      }
+      var error = new Error(
+        'API request failed (' + response.status + '): ' +
+        (errorBody.detail || errorBody.message || JSON.stringify(errorBody))
+      );
+      error.status = response.status;
+      error.body = errorBody;
+      throw error;
+    }
+
+    // Handle responses that may not have a body (e.g. 204 No Content)
+    var text = await response.text();
+    return text.length ? JSON.parse(text) : null;
+  };
+
   async function initFirebase() {
     initTheme();
 

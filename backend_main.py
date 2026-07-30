@@ -14,7 +14,7 @@ from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 
 from .config import settings
-from .routes import auth, projects, templates, video
+from .routes import auth, projects, templates, video, generate
 
 logging.basicConfig(
     level=logging.INFO,
@@ -104,6 +104,7 @@ app.include_router(auth.router)
 app.include_router(projects.router)
 app.include_router(templates.router)
 app.include_router(video.router)
+app.include_router(generate.router)
 
 
 # Exception handlers

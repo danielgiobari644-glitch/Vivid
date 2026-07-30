@@ -31,6 +31,11 @@
   var cropBase64 = null;
   var audioElement = null;
   var audioObjectUrl = null;
+  var aiGenImages = [];
+  var aiGenStyle = 'cinematic';
+  var aiGenRatio = '16:9';
+  var pendingVideos = [];
+  var videoObjectUrls = [];
 
   function generateId() {
     if (window.GIODAIUtils && window.GIODAIUtils.generateId) {
@@ -1603,7 +1608,7 @@
       }
     }
 
-    var panels = ['mediaPanel', 'layersPanel', 'audioPanel', 'textPanel'];
+    var panels = ['mediaPanel', 'ai-genPanel', 'videoPanel', 'layersPanel', 'audioPanel', 'textPanel'];
     for (var j = 0; j < panels.length; j++) {
       var el = $(panels[j]);
       if (el) el.style.display = 'none';
@@ -1801,17 +1806,19 @@
     var auth = window.firebaseAuth;
     var body = {
       images: [],
-      texts: state.texts,
-      audio: state.audio ? { name: state.audio.name, volume: state.audio.volume, fadeIn: state.audio.fadeIn, fadeOut: state.audio.fadeOut, trimStart: state.audio.trimStart, trimEnd: state.audio.trimEnd } : null,
-      resolution: state.exportResolution,
-      aspect_ratio: state.aspectRatio,
-      background_color: state.settings.bgColor || '#000000'
+      texts: [],
+      audio: null,
+      settings: {
+        resolution: state.exportResolution,
+        background_color: state.settings.bgColor || '#000000'
+      },
+      aspect_ratio: state.aspectRatio
     };
 
     for (var i = 0; i < state.images.length; i++) {
       var img = state.images[i];
       body.images.push({
-        data_url: img.dataUrl,
+        base64_data: img.dataUrl,
         name: img.name,
         duration: img.duration,
         effect: img.effect,
@@ -1823,6 +1830,33 @@
         crop_width: img.cropWidth,
         crop_height: img.cropHeight
       });
+    }
+
+    for (var t = 0; t < state.texts.length; t++) {
+      var txt = state.texts[t];
+      body.texts.push({
+        content: txt.content || '',
+        font: txt.fontFamily || 'Inter',
+        size: txt.fontSize || 32,
+        color: txt.fontColor || '#FFFFFF',
+        x: (txt.x || 50) / 100,
+        y: (txt.y || 50) / 100,
+        start_time: txt.startTime || 0,
+        end_time: txt.endTime || 3,
+        animation: txt.animation || 'none',
+        stroke_color: txt.outline ? (txt.outlineColor || '#000000') : null,
+        stroke_width: txt.outline ? 1 : 0
+      });
+    }
+
+    if (state.audio) {
+      body.audio = {
+        volume: (state.audio.volume || 80) / 100,
+        fade_in: state.audio.fadeIn || 0,
+        fade_out: state.audio.fadeOut || 0,
+        trim_start: state.audio.trimStart || 0,
+        trim_end: state.audio.trimEnd || null
+      };
     }
 
     var backendUrl = window.getBackendUrl ? window.getBackendUrl() : 'http://localhost:8000';
@@ -1993,6 +2027,500 @@
     closeModal(id);
   };
 
+
+  /* ============================
+     AI Image Generation Panel
+     ============================ */
+  function initAIGenPanel() {
+    var promptInput = $('aiPromptInput');
+    var charCount = $('aiCharCount');
+    var generateBtn = $('aiGenerateBtn');
+    var clearBtn = $('aiClearGalleryBtn');
+    var styleGrid = $('aiStyleGrid');
+    var ratioGrid = $('aiRatioGrid');
+
+    if (promptInput && charCount) {
+      promptInput.addEventListener('input', function () {
+        charCount.textContent = promptInput.value.length + ' / 1000';
+      });
+    }
+
+    if (styleGrid) {
+      var styleBtns = styleGrid.querySelectorAll('.ai-gen-style-btn');
+      for (var i = 0; i < styleBtns.length; i++) {
+        (function (btn) {
+          btn.addEventListener('click', function () {
+            for (var j = 0; j < styleBtns.length; j++) styleBtns[j].classList.remove('active');
+            btn.classList.add('active');
+            aiGenStyle = btn.getAttribute('data-style');
+          });
+        })(styleBtns[i]);
+      }
+    }
+
+    if (ratioGrid) {
+      var ratioBtns = ratioGrid.querySelectorAll('.ai-gen-ratio-btn');
+      for (var k = 0; k < ratioBtns.length; k++) {
+        (function (btn) {
+          btn.addEventListener('click', function () {
+            for (var m = 0; m < ratioBtns.length; m++) ratioBtns[m].classList.remove('active');
+            btn.classList.add('active');
+            aiGenRatio = btn.getAttribute('data-ratio');
+          });
+        })(ratioBtns[k]);
+      }
+    }
+
+    if (generateBtn) {
+      generateBtn.addEventListener('click', function () {
+        generateAIImage();
+      });
+    }
+
+    if (clearBtn) {
+      clearBtn.addEventListener('click', function () {
+        aiGenImages = [];
+        renderAIGenGallery();
+      });
+    }
+  }
+
+  function generateAIImage() {
+    var promptInput = $('aiPromptInput');
+    var negPrompt = $('aiNegPrompt');
+    var qualitySelect = $('aiQualitySelect');
+    var variationSelect = $('aiVariationSelect');
+    var progressEl = $('aiGenProgress');
+    var progressFill = $('aiGenProgressFill');
+    var progressText = $('aiGenProgressText');
+    var generateBtn = $('aiGenerateBtn');
+
+    var prompt = promptInput ? promptInput.value.trim() : '';
+    if (!prompt) {
+      showToast('error', 'Missing Prompt', 'Please enter a description of the image you want to generate.');
+      return;
+    }
+
+    if (generateBtn) generateBtn.disabled = true;
+    if (progressEl) progressEl.style.display = 'block';
+    if (progressFill) progressFill.style.width = '10%';
+    if (progressText) progressText.textContent = 'Sending request...';
+
+    var ratioMap = { '16:9': { w: 1344, h: 768 }, '9:16': { w: 768, h: 1344 }, '1:1': { w: 1024, h: 1024 }, '4:3': { w: 1152, h: 864 } };
+    var dims = ratioMap[aiGenRatio] || { w: 1024, h: 1024 };
+    var quality = qualitySelect ? qualitySelect.value : 'high';
+    var variations = variationSelect ? parseInt(variationSelect.value, 10) : 1;
+    var negative = negPrompt ? negPrompt.value.trim() : '';
+
+    var body = {
+      prompt: prompt,
+      style: aiGenStyle,
+      width: dims.w,
+      height: dims.h,
+      quality: quality,
+      num_variations: variations,
+      aspect_ratio: aiGenRatio
+    };
+    if (negative) body.negative_prompt = negative;
+
+    var backendUrl = window.getBackendUrl ? window.getBackendUrl() : 'http://localhost:8000';
+    var auth = window.firebaseAuth;
+
+    var doGenerate = function (token) {
+      var headers = { 'Content-Type': 'application/json' };
+      if (token) headers['Authorization'] = 'Bearer ' + token;
+
+      fetch(backendUrl + '/api/generate/image', {
+        method: 'POST',
+        headers: headers,
+        body: JSON.stringify(body)
+      }).then(function (res) {
+        if (!res.ok) return res.json().then(function (d) { throw new Error(d.detail || 'Generation failed'); });
+        return res.json();
+      }).then(function (data) {
+        if (progressFill) progressFill.style.width = '80%';
+        if (progressText) progressText.textContent = 'Processing images...';
+
+        var images = data.images || [];
+        for (var i = 0; i < images.length; i++) {
+          aiGenImages.push({
+            id: generateId(),
+            url: images[i].url || images[i].base64_data || '',
+            width: images[i].width || dims.w,
+            height: images[i].height || dims.h,
+            prompt: prompt,
+            style: aiGenStyle
+          });
+        }
+
+        if (progressFill) progressFill.style.width = '100%';
+        if (progressText) progressText.textContent = images.length + ' image(s) generated!';
+        setTimeout(function () {
+          if (progressEl) progressEl.style.display = 'none';
+          if (progressFill) progressFill.style.width = '0%';
+        }, 1500);
+        renderAIGenGallery();
+        showToast('success', 'Images Generated', images.length + ' AI image(s) added to gallery.');
+      }).catch(function (err) {
+        console.error('AI generation error:', err);
+        showToast('error', 'Generation Failed', err.message || 'Failed to generate images. Please try again.');
+        if (progressEl) progressEl.style.display = 'none';
+        if (progressFill) progressFill.style.width = '0%';
+      }).finally(function () {
+        if (generateBtn) generateBtn.disabled = false;
+      });
+    };
+
+    if (auth && auth.currentUser) {
+      auth.currentUser.getIdToken().then(doGenerate).catch(function () {
+        showToast('error', 'Auth Error', 'Failed to get auth token.');
+        if (generateBtn) generateBtn.disabled = false;
+        if (progressEl) progressEl.style.display = 'none';
+      });
+    } else {
+      doGenerate('');
+    }
+  }
+
+  function renderAIGenGallery() {
+    var gallery = $('aiGenGallery');
+    var emptyEl = $('aiGenEmpty');
+    var clearBtn = $('aiClearGalleryBtn');
+    var listHeader = $('videoListHeader');
+
+    if (!gallery) return;
+
+    var items = gallery.querySelectorAll('.ai-gen-gallery-item');
+    for (var i = 0; i < items.length; i++) items[i].remove();
+
+    if (aiGenImages.length === 0) {
+      if (emptyEl) emptyEl.style.display = 'flex';
+      if (clearBtn) clearBtn.style.display = 'none';
+      return;
+    }
+
+    if (emptyEl) emptyEl.style.display = 'none';
+    if (clearBtn) clearBtn.style.display = 'inline-block';
+
+    for (var j = 0; j < aiGenImages.length; j++) {
+      (function (imgData, idx) {
+        var item = document.createElement('div');
+        item.className = 'ai-gen-gallery-item';
+        var imgSrc = imgData.url;
+        if (imgSrc && !imgSrc.startsWith('data:') && !imgSrc.startsWith('http')) {
+          imgSrc = 'data:image/png;base64,' + imgSrc;
+        }
+        item.innerHTML =
+          '<img src="' + imgSrc + '" alt="AI Generated">' +
+          '<div class="ai-gen-gallery-item-actions">' +
+            '<button class="ai-gen-gallery-add-btn" title="Add to Timeline">' +
+              '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>' +
+            '</button>' +
+            '<button class="ai-gen-gallery-remove-btn" title="Remove">' +
+              '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>' +
+            '</button>' +
+          '</div>';
+
+        var addBtn = item.querySelector('.ai-gen-gallery-add-btn');
+        var removeBtn = item.querySelector('.ai-gen-gallery-remove-btn');
+
+        if (addBtn) {
+          addBtn.addEventListener('click', function (e) {
+            e.stopPropagation();
+            addAIGenImageToTimeline(imgData);
+          });
+        }
+        if (removeBtn) {
+          removeBtn.addEventListener('click', function (e) {
+            e.stopPropagation();
+            aiGenImages.splice(idx, 1);
+            renderAIGenGallery();
+          });
+        }
+
+        gallery.appendChild(item);
+      })(aiGenImages[j], j);
+    }
+  }
+
+  function addAIGenImageToTimeline(imgData) {
+    var imgSrc = imgData.url;
+    if (imgSrc && !imgSrc.startsWith('data:') && !imgSrc.startsWith('http')) {
+      imgSrc = 'data:image/png;base64,' + imgSrc;
+    }
+    pushUndo();
+    state.images.push({
+      id: generateId(),
+      dataUrl: imgSrc,
+      name: 'AI: ' + (imgData.prompt || 'Generated').substring(0, 30),
+      duration: 3,
+      order: state.images.length,
+      effect: 'none',
+      transition: 'none',
+      rotation: 0,
+      zoom: 100,
+      cropX: 0,
+      cropY: 0,
+      cropWidth: 100,
+      cropHeight: 100
+    });
+    refreshAll();
+    showToast('success', 'Added to Timeline', 'AI-generated image added as a new slide.');
+  }
+
+  /* ============================
+     Video Upload Panel
+     ============================ */
+  function initVideoPanel() {
+    var uploadZone = $('videoUploadZone');
+    var fileInput = $('videoFileInput');
+    var importBtn = $('importVideosBtn');
+
+    if (uploadZone) {
+      uploadZone.addEventListener('click', function () {
+        if (fileInput) fileInput.click();
+      });
+      uploadZone.addEventListener('dragover', function (e) {
+        e.preventDefault();
+        e.stopPropagation();
+        uploadZone.classList.add('drag-over');
+      });
+      uploadZone.addEventListener('dragleave', function (e) {
+        e.preventDefault();
+        e.stopPropagation();
+        uploadZone.classList.remove('drag-over');
+      });
+      uploadZone.addEventListener('drop', function (e) {
+        e.preventDefault();
+        e.stopPropagation();
+        uploadZone.classList.remove('drag-over');
+        handleVideoFiles(e.dataTransfer.files);
+      });
+    }
+
+    if (fileInput) {
+      fileInput.addEventListener('change', function (e) {
+        handleVideoFiles(e.target.files);
+        fileInput.value = '';
+      });
+    }
+
+    if (importBtn) {
+      importBtn.addEventListener('click', importVideoFrames);
+    }
+  }
+
+  function handleVideoFiles(files) {
+    if (!files || files.length === 0) return;
+    for (var i = 0; i < files.length; i++) {
+      if (files[i].type.startsWith('video/')) {
+        addPendingVideo(files[i]);
+      }
+    }
+  }
+
+  function addPendingVideo(file) {
+    var objectUrl = URL.createObjectURL(file);
+    videoObjectUrls.push(objectUrl);
+
+    var tempVideo = document.createElement('video');
+    tempVideo.preload = 'metadata';
+    tempVideo.muted = true;
+    tempVideo.src = objectUrl;
+
+    tempVideo.addEventListener('loadedmetadata', function () {
+      var duration = tempVideo.duration;
+      tempVideo.currentTime = Math.min(1, duration * 0.1);
+    });
+
+    tempVideo.addEventListener('seeked', function () {
+      var canvas = document.createElement('canvas');
+      canvas.width = 320;
+      canvas.height = 180;
+      var ctx = canvas.getContext('2d');
+      ctx.drawImage(tempVideo, 0, 0, canvas.width, canvas.height);
+      var thumbUrl = canvas.toDataURL('image/jpeg', 0.7);
+
+      pendingVideos.push({
+        id: generateId(),
+        name: file.name,
+        objectUrl: objectUrl,
+        duration: tempVideo.duration,
+        size: file.size,
+        thumbnail: thumbUrl,
+        selected: true
+      });
+
+      renderVideoList();
+    });
+
+    tempVideo.addEventListener('error', function () {
+      showToast('error', 'Video Error', 'Failed to load video: ' + file.name);
+    });
+  }
+
+  function renderVideoList() {
+    var list = $('videoList');
+    var header = $('videoListHeader');
+    var countEl = $('videoListCount');
+    var importSection = $('videoImportSection');
+
+    if (!list) return;
+    list.innerHTML = '';
+
+    if (pendingVideos.length === 0) {
+      if (header) header.style.display = 'none';
+      if (importSection) importSection.style.display = 'none';
+      return;
+    }
+
+    if (header) header.style.display = 'flex';
+    if (countEl) countEl.textContent = pendingVideos.length;
+    if (importSection) importSection.style.display = 'block';
+
+    for (var i = 0; i < pendingVideos.length; i++) {
+      var vid = pendingVideos[i];
+      var item = document.createElement('div');
+      item.className = 'video-list-item' + (vid.selected ? ' selected' : '');
+
+      var sizeStr = vid.size > 1048576
+        ? (vid.size / 1048576).toFixed(1) + ' MB'
+        : (vid.size / 1024).toFixed(0) + ' KB';
+
+      item.innerHTML =
+        '<input type="checkbox" class="video-list-checkbox" ' + (vid.selected ? 'checked' : '') + '>' +
+        '<div class="video-list-thumb"><img src="' + vid.thumbnail + '" alt=""></div>' +
+        '<div class="video-list-info">' +
+          '<div class="video-list-name">' + vid.name + '</div>' +
+          '<div class="video-list-meta">' + formatTime(vid.duration) + ' &middot; ' + sizeStr + '</div>' +
+        '</div>' +
+        '<button class="video-list-remove-btn" title="Remove">' +
+          '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>' +
+        '</button>';
+
+      (function (vidIdx) {
+        var checkbox = item.querySelector('.video-list-checkbox');
+        var removeBtn = item.querySelector('.video-list-remove-btn');
+
+        if (checkbox) {
+          checkbox.addEventListener('change', function () {
+            pendingVideos[vidIdx].selected = checkbox.checked;
+            item.classList.toggle('selected', checkbox.checked);
+          });
+        }
+        if (removeBtn) {
+          removeBtn.addEventListener('click', function () {
+            var removed = pendingVideos.splice(vidIdx, 1)[0];
+            var urlIdx = videoObjectUrls.indexOf(removed.objectUrl);
+            if (urlIdx > -1) {
+              URL.revokeObjectURL(videoObjectUrls[urlIdx]);
+              videoObjectUrls.splice(urlIdx, 1);
+            }
+            renderVideoList();
+          });
+        }
+      })(i);
+
+      list.appendChild(item);
+    }
+  }
+
+  function importVideoFrames() {
+    var selected = [];
+    for (var i = 0; i < pendingVideos.length; i++) {
+      if (pendingVideos[i].selected) selected.push(pendingVideos[i]);
+    }
+    if (selected.length === 0) {
+      showToast('error', 'No Videos Selected', 'Select at least one video to import frames from.');
+      return;
+    }
+
+    showToast('info', 'Extracting Frames', 'Extracting frames from ' + selected.length + ' video(s)...');
+    var totalFramesAdded = 0;
+
+    var processNext = function (idx) {
+      if (idx >= selected.length) {
+        refreshAll();
+        showToast('success', 'Import Complete', totalFramesAdded + ' frame(s) added to the timeline.');
+        return;
+      }
+      extractFramesFromVideo(selected[idx], function (frames) {
+        pushUndo();
+        for (var f = 0; f < frames.length; f++) {
+          state.images.push({
+            id: generateId(),
+            dataUrl: frames[f].dataUrl,
+            name: frames[f].name,
+            duration: 3,
+            order: state.images.length,
+            effect: 'none',
+            transition: 'none',
+            rotation: 0,
+            zoom: 100,
+            cropX: 0,
+            cropY: 0,
+            cropWidth: 100,
+            cropHeight: 100
+          });
+          totalFramesAdded++;
+        }
+        processNext(idx + 1);
+      });
+    };
+
+    processNext(0);
+  }
+
+  function extractFramesFromVideo(vidObj, callback) {
+    var video = document.createElement('video');
+    video.preload = 'auto';
+    video.muted = true;
+    video.src = vidObj.objectUrl;
+
+    var frames = [];
+    var duration = vidObj.duration;
+    var interval = Math.max(1, Math.ceil(duration / 10));
+    var seekTimes = [];
+    for (var t = 0; t < duration; t += interval) {
+      seekTimes.push(t);
+    }
+    if (seekTimes.length === 0) seekTimes.push(0);
+
+    var currentSeek = 0;
+
+    video.addEventListener('seeked', function onSeeked() {
+      var canvas = document.createElement('canvas');
+      canvas.width = 1280;
+      canvas.height = 720;
+      var ctx = canvas.getContext('2d');
+      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+      var dataUrl = canvas.toDataURL('image/jpeg', 0.85);
+      var timeLabel = formatTime(seekTimes[currentSeek]);
+      frames.push({
+        dataUrl: dataUrl,
+        name: vidObj.name.replace(/\.[^.]+$/, '') + ' @ ' + timeLabel
+      });
+      currentSeek++;
+
+      if (currentSeek < seekTimes.length) {
+        video.currentTime = seekTimes[currentSeek];
+      } else {
+        video.removeEventListener('seeked', onSeeked);
+        URL.revokeObjectURL(video.src);
+        callback(frames);
+      }
+    });
+
+    video.addEventListener('loadedmetadata', function () {
+      video.currentTime = seekTimes[0];
+    });
+
+    video.addEventListener('error', function () {
+      showToast('error', 'Frame Extraction Error', 'Failed to extract frames from: ' + vidObj.name);
+      callback(frames);
+    });
+  }
+
   /* ============================
      Initialization
      ============================ */
@@ -2000,6 +2528,8 @@
     initEditor();
     initMediaPanel();
     initCropModal();
+    initAIGenPanel();
+    initVideoPanel();
     initAudioPanel();
     initTextPanel();
     initInspector();

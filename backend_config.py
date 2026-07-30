@@ -24,9 +24,13 @@ class Settings(BaseSettings):
 
     # Upload Configuration
     UPLOAD_DIR: str = "uploads"
+    VIDEO_UPLOAD_DIR: str = "uploads/videos"
     TEMP_DIR: str = "temp"
     MAX_IMAGES_PER_PROJECT: int = 50
     MAX_TEXT_OVERLAYS: int = 20
+
+    # Video Upload Configuration
+    MAX_VIDEO_UPLOAD_SIZE: int = 500 * 1024 * 1024  # 500 MB for video files
 
     # Template Categories
     TEMPLATE_CATEGORIES: List[str] = [

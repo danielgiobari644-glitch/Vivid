@@ -9,6 +9,98 @@
   var createImages = [];
   var createSettings = { aspectRatio: '9:16', duration: 3, effect: 'none', transition: 'fade' };
   var draggedImgIdx = null;
+  var aiGenState = {
+    activeTab: 'upload',
+    prompt: '',
+    negativePrompt: '',
+    style: 'none',
+    model: 'standard',
+    aspectRatio: '9:16',
+    batchCount: 1,
+    quality: 'high',
+    seed: null,
+    referenceImageDataUrl: null,
+    referenceStrength: 0.5,
+    isGenerating: false,
+    currentGenerationId: null,
+    pollInterval: null,
+    generatedImages: [],
+    progress: 0
+  };
+
+  var AI_GEN_STYLES = [
+    { id: 'none', name: 'Default', color: '#A29BFE' },
+    { id: 'realistic', name: 'Realistic', color: '#00CEC9' },
+    { id: 'anime', name: 'Anime', color: '#FD79A8' },
+    { id: 'digital_art', name: 'Digital Art', color: '#6C5CE7' },
+    { id: 'oil_painting', name: 'Oil Painting', color: '#E17055' },
+    { id: 'watercolor', name: 'Watercolor', color: '#74B9FF' },
+    { id: 'sketch', name: 'Sketch', color: '#636E72' },
+    { id: 'cyberpunk', name: 'Cyberpunk', color: '#E84393' },
+    { id: 'minimalist', name: 'Minimalist', color: '#DFE6E9' },
+    { id: 'cinematic', name: 'Cinematic', color: '#FDCB6E' }
+  ];
+
+  var AI_GEN_MODELS = [
+    { id: 'standard', name: 'Standard', icon: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>' },
+    { id: 'high', name: 'High Quality', icon: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>' },
+    { id: 'ultra', name: 'Ultra HD', icon: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>' },
+    { id: 'draft', name: 'Draft', icon: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 14.66V20a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h5.34"/><polygon points="18 2 22 6 12 16 8 16 8 12 18 2"/></svg>' }
+  ];
+
+  var AI_GEN_RATIOS = [
+    { id: '1:1', label: '1:1', w: 28, h: 28 },
+    { id: '16:9', label: '16:9', w: 40, h: 22 },
+    { id: '9:16', label: '9:16', w: 22, h: 40 },
+    { id: '4:5', label: '4:5', w: 28, h: 35 }
+  ];
+
+  var AI_GEN_HINTS = [
+    'Sunrise over mountains', 'Worship stage with lights', 'Open Bible on wooden table',
+    'Church interior stained glass', 'Peaceful garden pathway', 'Candlelight prayer scene',
+    'Cross on a hill at sunset', 'Dove flying over water', 'Community gathering hands together'
+  ];
+
+  var AI_STYLES = [
+    { id: 'none', name: 'Default', color: '#6C5CE7' },
+    { id: 'realistic', name: 'Realistic', color: '#00CEC9' },
+    { id: 'anime', name: 'Anime', color: '#E84393' },
+    { id: 'digital_art', name: 'Digital Art', color: '#0984E3' },
+    { id: 'oil_painting', name: 'Oil Painting', color: '#FDCB6E' },
+    { id: 'watercolor', name: 'Watercolor', color: '#55EFC4' },
+    { id: 'sketch', name: 'Sketch', color: '#B2BEC3' },
+    { id: 'cyberpunk', name: 'Cyberpunk', color: '#A29BFE' },
+    { id: 'minimalist', name: 'Minimalist', color: '#636E72' },
+    { id: 'cinematic', name: 'Cinematic', color: '#E17055' }
+  ];
+
+  var AI_QUALITY_OPTIONS = [
+    { id: 'draft', name: 'Draft', desc: 'Fast, lower quality' },
+    { id: 'standard', name: 'Standard', desc: 'Balanced' },
+    { id: 'high', name: 'High', desc: 'Best quality' },
+    { id: 'ultra', name: 'Ultra', desc: 'Maximum detail' }
+  ];
+
+  var AI_ASPECT_RATIOS = [
+    { id: '9:16', label: '9:16', w: 36, h: 64 },
+    { id: '16:9', label: '16:9', w: 64, h: 36 },
+    { id: '1:1', label: '1:1', w: 48, h: 48 },
+    { id: '4:5', label: '4:5', w: 40, h: 50 }
+  ];
+
+  var AI_PROMPT_HINTS = [
+    'Worship background with golden light rays',
+    'Serene nature landscape at sunset',
+    'Modern church interior with stained glass',
+    'Abstract gradient with bokeh particles',
+    'Cinematic mountain scene with clouds',
+    'Elegant floral arrangement on dark background',
+    'Neon city street at night',
+    'Peaceful ocean waves at sunrise',
+    'Vintage parchment with calligraphy',
+    'Soft pastel sky with floating clouds'
+  ];
+
   var notifications = [
     { id: 1, text: 'Welcome to GIODAI! Start by uploading images.', time: Date.now(), read: false, icon: 'sparkle' },
     { id: 2, text: 'New templates have been added. Check them out!', time: Date.now() - 3600000, read: false, icon: 'template' },
@@ -458,12 +550,20 @@
   function renderCreate(el) {
     createImages = [];
     createSettings = { aspectRatio: '9:16', duration: 3, effect: 'none', transition: 'fade' };
-    el.innerHTML = '<div class="page-header"><h1>Create New Video</h1><p>Upload images and configure your video settings.</p></div>' +
-      '<div class="glass-card" style="padding:var(--space-6);margin-bottom:var(--space-5)">' +
-      '<h3 style="font-size:var(--font-size-base);font-weight:var(--font-weight-semibold);margin-bottom:var(--space-4)">Upload Images</h3>' +
-      '<div class="image-uploader" id="dropZone"><div class="image-uploader-icon"><svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg></div>' +
-      '<h3>Drag and drop images here</h3><p>or click to browse. Supports JPG, PNG, WebP.</p>' +
-      '<input type="file" id="fileInput" multiple accept="image/*" style="display:none"></div></div>' +
+    aiGenState = {
+      activeTab: 'upload', prompt: '', negativePrompt: '', style: 'none',
+      quality: 'high', aspectRatio: '9:16', numVariations: 1, seed: null,
+      generationId: null, isGenerating: false, progress: 0, generatedImages: [], pollTimer: null
+    };
+    var activeTab = 'upload';
+    el.innerHTML =
+      '<div class="page-header"><h1>Create New Video</h1><p>Upload images or generate them with AI, then configure your video settings.</p></div>' +
+      '<div class="glass-card" style="padding:var(--space-4);margin-bottom:var(--space-5)">' +
+      '<div style="display:flex;gap:var(--space-2);border-bottom:1px solid var(--border-color-light);padding-bottom:0;margin-bottom:var(--space-5)">' +
+        '<button class="create-tab ' + (activeTab === 'upload' ? 'active' : '') + '" data-create-tab="upload"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg> Upload Images</button>' +
+        '<button class="create-tab ' + (activeTab === 'ai' ? 'active' : '') + '" data-create-tab="ai"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg> AI Generate</button>' +
+      '</div>' +
+      '<div id="createTabContent"></div></div>' +
       '<div id="imageGridContainer" style="margin-bottom:var(--space-5);display:none">' +
       '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:var(--space-3)">' +
       '<h3 style="font-size:var(--font-size-base);font-weight:var(--font-weight-semibold)">Images (<span id="imageCount">0</span>)</h3>' +
@@ -479,10 +579,40 @@
       '<div class="form-group"><label class="form-label">Transition</label><select class="form-select" id="crTransition"><option value="fade">Fade</option><option value="crossfade">Crossfade</option><option value="dissolve">Dissolve</option><option value="slide">Slide</option><option value="none">None</option></select></div>' +
       '</div></div>' +
       '<div style="display:flex;align-items:center;justify-content:flex-end;gap:var(--space-3)"><button class="btn btn-secondary" id="addMoreBtn">Add More Images</button><button class="btn btn-primary btn-lg" id="createVideoBtn"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"/></svg> Create Video</button></div></div>';
+    renderCreateTabContent('upload');
+    bindCreateTabEvents();
     bindCreateEvents();
   }
 
-  function bindCreateEvents() {
+  function renderCreateTabContent(tab) {
+    var container = document.getElementById('createTabContent');
+    if (!container) return;
+    if (tab === 'upload') {
+      container.innerHTML =
+        '<h3 style="font-size:var(--font-size-base);font-weight:var(--font-weight-semibold);margin-bottom:var(--space-4)">Upload Images</h3>' +
+        '<div class="image-uploader" id="dropZone"><div class="image-uploader-icon"><svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg></div>' +
+        '<h3>Drag and drop images here</h3><p>or click to browse. Supports JPG, PNG, WebP.</p>' +
+        '<input type="file" id="fileInput" multiple accept="image/*" style="display:none"></div>';
+      bindUploadEvents();
+    } else {
+      renderAIPanel(container);
+    }
+  }
+
+  function bindCreateTabEvents() {
+    document.addEventListener('click', function (e) {
+      var tab = e.target.closest('.create-tab');
+      if (!tab) return;
+      var tabName = tab.getAttribute('data-create-tab');
+      aiGenState.activeTab = tabName;
+      var tabs = document.querySelectorAll('.create-tab');
+      for (var i = 0; i < tabs.length; i++) tabs[i].classList.remove('active');
+      tab.classList.add('active');
+      renderCreateTabContent(tabName);
+    });
+  }
+
+  function bindUploadEvents() {
     var dropZone = document.getElementById('dropZone');
     var fileInput = document.getElementById('fileInput');
     if (dropZone) {
@@ -492,6 +622,436 @@
       dropZone.addEventListener('drop', function (e) { e.preventDefault(); this.classList.remove('drag-over'); handleFiles(e.dataTransfer.files); });
     }
     if (fileInput) fileInput.addEventListener('change', function () { handleFiles(this.files); this.value = ''; });
+  }
+
+  /* ===== AI GENERATION PANEL ===== */
+  function renderAIPanel(container) {
+    var stylesHtml = '';
+    for (var s = 0; s < AI_STYLES.length; s++) {
+      var st = AI_STYLES[s];
+      stylesHtml += '<button class="ai-gen-style-chip' + (aiGenState.style === st.id ? ' active' : '') + '" data-style="' + st.id + '">' +
+        '<span class="ai-gen-style-chip-preview" style="background:' + st.color + '"></span>' +
+        escapeHtml(st.name) + '</button>';
+    }
+
+    var qualityHtml = '';
+    for (var q = 0; q < AI_QUALITY_OPTIONS.length; q++) {
+      var qu = AI_QUALITY_OPTIONS[q];
+      qualityHtml += '<div class="ai-gen-model-option' + (aiGenState.quality === qu.id ? ' selected' : '') + '" data-quality="' + qu.id + '">' +
+        '<div class="ai-gen-model-option-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 2 7 12 12 22 7 12 2"/></svg></div>' +
+        '<div class="ai-gen-model-option-label">' + escapeHtml(qu.name) + '</div></div>';
+    }
+
+    var ratioHtml = '';
+    for (var r = 0; r < AI_ASPECT_RATIOS.length; r++) {
+      var ar = AI_ASPECT_RATIOS[r];
+      ratioHtml += '<div class="ai-gen-ratio-option' + (aiGenState.aspectRatio === ar.id ? ' selected' : '') + '" data-ratio="' + ar.id + '">' +
+        '<div class="ai-gen-ratio-preview" style="width:' + ar.w + 'px;height:' + ar.h + 'px"></div>' +
+        '<div class="ai-gen-ratio-label">' + escapeHtml(ar.label) + '</div></div>';
+    }
+
+    var hintsHtml = '';
+    for (var h = 0; h < AI_PROMPT_HINTS.length; h++) {
+      hintsHtml += '<span class="ai-gen-hint-chip" data-hint="' + h + '">' + escapeHtml(AI_PROMPT_HINTS[h]) + '</span>';
+    }
+
+    container.innerHTML =
+      '<div class="ai-gen-layout">' +
+      '<div class="ai-gen-controls">' +
+        '<div class="ai-gen-controls-section">' +
+          '<div class="ai-gen-section-label">Prompt <span class="ai-gen-panel-badge"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5z"/></svg> AI</span></div>' +
+          '<div class="ai-gen-prompt-area">' +
+            '<textarea class="ai-gen-prompt-input" id="aiPrompt" placeholder="Describe the image you want to generate..." maxlength="2000">' + escapeHtml(aiGenState.prompt) + '</textarea>' +
+            '<div class="ai-gen-prompt-footer"><span class="ai-gen-prompt-counter"><span id="aiPromptCount">' + (aiGenState.prompt || '').length + '</span>/2000</span>' +
+            '<button class="ai-gen-prompt-enhance-btn" id="aiPromptClear">Clear</button></div>' +
+          '</div>' +
+        '</div>' +
+        '<div class="ai-gen-controls-section">' +
+          '<div class="ai-gen-section-label">Negative Prompt <span style="font-size:var(--font-size-xs);color:var(--text-quaternary);text-transform:none;letter-spacing:0;font-weight:var(--font-weight-normal)">(optional)</span></div>' +
+          '<textarea class="ai-gen-negative-prompt" id="aiNegativePrompt" placeholder="What to avoid... (e.g. blurry, low quality)" maxlength="1000">' + escapeHtml(aiGenState.negativePrompt) + '</textarea>' +
+        '</div>' +
+        '<div class="ai-gen-controls-section">' +
+          '<div class="ai-gen-section-label">Style</div>' +
+          '<div class="ai-gen-style-chips" id="aiStyleChips">' + stylesHtml + '</div>' +
+        '</div>' +
+        '<div class="ai-gen-controls-section">' +
+          '<div class="ai-gen-section-label">Quality</div>' +
+          '<div class="ai-gen-model-grid" id="aiQualityGrid">' + qualityHtml + '</div>' +
+        '</div>' +
+        '<div class="ai-gen-controls-section">' +
+          '<div class="ai-gen-section-label">Aspect Ratio</div>' +
+          '<div class="ai-gen-ratio-grid" id="aiRatioGrid">' + ratioHtml + '</div>' +
+        '</div>' +
+        '<div class="ai-gen-controls-section">' +
+          '<div class="ai-gen-section-label">Variations</div>' +
+          '<div class="ai-gen-batch-controls">' +
+            '<button class="ai-gen-batch-btn" id="aiVarMinus">−</button>' +
+            '<span class="ai-gen-batch-count" id="aiVarCount">' + aiGenState.numVariations + '</span>' +
+            '<button class="ai-gen-batch-btn" id="aiVarPlus">+</button>' +
+            '<span style="font-size:var(--font-size-xs);color:var(--text-tertiary);margin-left:var(--space-2)">images</span>' +
+          '</div>' +
+        '</div>' +
+        '<div class="ai-gen-controls-section">' +
+          '<div class="ai-gen-section-label">Seed <span style="font-size:var(--font-size-xs);color:var(--text-quaternary);text-transform:none;letter-spacing:0;font-weight:var(--font-weight-normal)">(optional)</span></div>' +
+          '<div class="ai-gen-seed-row">' +
+            '<input type="number" class="ai-gen-seed-input" id="aiSeed" placeholder="Random" value="' + (aiGenState.seed != null ? aiGenState.seed : '') + '">' +
+            '<button class="ai-gen-seed-random-btn" id="aiSeedRandom" title="Random seed"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="4" width="16" height="16" rx="2" ry="2"/><circle cx="9" cy="9" r="1" fill="currentColor"/><circle cx="15" cy="9" r="1" fill="currentColor"/><circle cx="9" cy="15" r="1" fill="currentColor"/><circle cx="15" cy="15" r="1" fill="currentColor"/><circle cx="12" cy="12" r="1" fill="currentColor"/></svg></button>' +
+          '</div>' +
+        '</div>' +
+        '<div class="ai-gen-actions">' +
+          '<button class="ai-gen-generate-btn" id="aiGenerateBtn">' +
+            '<span class="ai-gen-btn-text"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg> Generate Images</span>' +
+            '<span class="ai-gen-btn-loading"><span class="ai-gen-loading-spinner"></span> Generating... <span id="aiGenProgress">0</span>%</span>' +
+          '</button>' +
+          '<div class="ai-gen-secondary-actions">' +
+            '<button class="ai-gen-secondary-btn" id="aiAddAllBtn" style="display:none"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg> Add All to Project</button>' +
+            '<button class="ai-gen-secondary-btn" id="aiClearGenBtn" style="display:none"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/></svg> Clear Results</button>' +
+          '</div>' +
+        '</div>' +
+      '</div>' +
+      '<div class="ai-gen-preview" id="aiPreview">' +
+        renderAIPreviewContent() +
+      '</div>' +
+      '</div>';
+    bindAIGenerateEvents();
+  }
+
+  function renderAIPreviewContent() {
+    if (aiGenState.isGenerating) {
+      var cols = aiGenState.numVariations > 2 ? 'cols-2' : (aiGenState.numVariations === 1 ? 'cols-1' : 'cols-2');
+      var skeletons = '';
+      for (var i = 0; i < aiGenState.numVariations; i++) {
+        var h = aiGenState.aspectRatio === '9:16' ? '380px' : (aiGenState.aspectRatio === '16:9' ? '200px' : '260px');
+        skeletons += '<div class="ai-gen-image-skeleton" style="height:' + h + '"><div class="ai-gen-image-skeleton-progress" style="width:' + aiGenState.progress + '%"></div></div>';
+      }
+      return '<div class="ai-gen-preview-grid ' + cols + '">' + skeletons + '</div>';
+    }
+    if (aiGenState.generatedImages.length > 0) {
+      var cols = aiGenState.generatedImages.length > 2 ? 'cols-2' : (aiGenState.generatedImages.length === 1 ? 'cols-1' : 'cols-2');
+      var cardsHtml = '';
+      for (var j = 0; j < aiGenState.generatedImages.length; j++) {
+        var img = aiGenState.generatedImages[j];
+        cardsHtml += '<div class="ai-gen-image-card">' +
+          '<img src="' + img.dataUrl + '" alt="Generated image ' + (j + 1) + '">' +
+          '<div class="ai-gen-image-card-overlay">' +
+            '<div class="ai-gen-image-card-number">' + (j + 1) + '</div>' +
+            '<div class="ai-gen-image-card-actions">' +
+              '<button class="ai-gen-image-action-btn" data-ai-action="add" data-ai-idx="' + j + '" title="Add to project"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></button>' +
+              '<button class="ai-gen-image-action-btn" data-ai-action="download" data-ai-idx="' + j + '" title="Download"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg></button>' +
+              '<button class="ai-gen-image-action-btn" data-ai-action="regen" data-ai-idx="' + j + '" title="Regenerate variation"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg></button>' +
+            '</div>' +
+          '</div>' +
+        '</div>';
+      }
+      return '<div class="ai-gen-preview-grid ' + cols + '">' + cardsHtml + '</div>';
+    }
+    var hintsHtml = '';
+    for (var k = 0; k < AI_PROMPT_HINTS.length; k++) {
+      hintsHtml += '<span class="ai-gen-hint-chip" data-hint="' + k + '">' + escapeHtml(AI_PROMPT_HINTS[k]) + '</span>';
+    }
+    return '<div class="ai-gen-empty-state">' +
+      '<div class="ai-gen-empty-state-icon"><svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg></div>' +
+      '<h3>Generate with AI</h3>' +
+      '<p>Describe what you want to see and let AI create stunning images for your video.</p>' +
+      '<div class="ai-gen-empty-state-hints">' + hintsHtml + '</div>' +
+    '</div>';
+  }
+
+  function bindAIGenerateEvents() {
+    var promptEl = document.getElementById('aiPrompt');
+    var countEl = document.getElementById('aiPromptCount');
+    if (promptEl) {
+      promptEl.addEventListener('input', function () {
+        aiGenState.prompt = this.value;
+        if (countEl) countEl.textContent = this.value.length;
+      });
+    }
+    var negEl = document.getElementById('aiNegativePrompt');
+    if (negEl) {
+      negEl.addEventListener('input', function () { aiGenState.negativePrompt = this.value; });
+    }
+    var clearPrompt = document.getElementById('aiPromptClear');
+    if (clearPrompt) {
+      clearPrompt.addEventListener('click', function () {
+        aiGenState.prompt = '';
+        if (promptEl) promptEl.value = '';
+        if (countEl) countEl.textContent = '0';
+      });
+    }
+
+    var styleChips = document.getElementById('aiStyleChips');
+    if (styleChips) {
+      styleChips.addEventListener('click', function (e) {
+        var chip = e.target.closest('.ai-gen-style-chip');
+        if (!chip) return;
+        var chips = this.querySelectorAll('.ai-gen-style-chip');
+        for (var i = 0; i < chips.length; i++) chips[i].classList.remove('active');
+        chip.classList.add('active');
+        aiGenState.style = chip.getAttribute('data-style');
+      });
+    }
+
+    var qualityGrid = document.getElementById('aiQualityGrid');
+    if (qualityGrid) {
+      qualityGrid.addEventListener('click', function (e) {
+        var opt = e.target.closest('.ai-gen-model-option');
+        if (!opt) return;
+        var opts = this.querySelectorAll('.ai-gen-model-option');
+        for (var i = 0; i < opts.length; i++) opts[i].classList.remove('selected');
+        opt.classList.add('selected');
+        aiGenState.quality = opt.getAttribute('data-quality');
+      });
+    }
+
+    var ratioGrid = document.getElementById('aiRatioGrid');
+    if (ratioGrid) {
+      ratioGrid.addEventListener('click', function (e) {
+        var opt = e.target.closest('.ai-gen-ratio-option');
+        if (!opt) return;
+        var opts = this.querySelectorAll('.ai-gen-ratio-option');
+        for (var i = 0; i < opts.length; i++) opts[i].classList.remove('selected');
+        opt.classList.add('selected');
+        aiGenState.aspectRatio = opt.getAttribute('data-ratio');
+      });
+    }
+
+    var varMinus = document.getElementById('aiVarMinus');
+    var varPlus = document.getElementById('aiVarPlus');
+    var varCount = document.getElementById('aiVarCount');
+    if (varMinus) varMinus.addEventListener('click', function () {
+      if (aiGenState.numVariations > 1) { aiGenState.numVariations--; if (varCount) varCount.textContent = aiGenState.numVariations; }
+    });
+    if (varPlus) varPlus.addEventListener('click', function () {
+      if (aiGenState.numVariations < 4) { aiGenState.numVariations++; if (varCount) varCount.textContent = aiGenState.numVariations; }
+    });
+
+    var seedInput = document.getElementById('aiSeed');
+    if (seedInput) seedInput.addEventListener('input', function () { aiGenState.seed = this.value ? parseInt(this.value) : null; });
+    var seedRandom = document.getElementById('aiSeedRandom');
+    if (seedRandom) seedRandom.addEventListener('click', function () {
+      aiGenState.seed = Math.floor(Math.random() * 2147483647);
+      if (seedInput) seedInput.value = aiGenState.seed;
+    });
+
+    var generateBtn = document.getElementById('aiGenerateBtn');
+    if (generateBtn) generateBtn.addEventListener('click', handleAIGenerate);
+
+    var addAllBtn = document.getElementById('aiAddAllBtn');
+    if (addAllBtn) addAllBtn.addEventListener('click', addAllGeneratedToProject);
+
+    var clearGenBtn = document.getElementById('aiClearGenBtn');
+    if (clearGenBtn) clearGenBtn.addEventListener('click', function () {
+      aiGenState.generatedImages = [];
+      aiGenState.generationId = null;
+      var preview = document.getElementById('aiPreview');
+      if (preview) preview.innerHTML = renderAIPreviewContent();
+      updateAIGenButtons();
+    });
+
+    var preview = document.getElementById('aiPreview');
+    if (preview) {
+      preview.addEventListener('click', function (e) {
+        var btn = e.target.closest('[data-ai-action]');
+        if (!btn) {
+          var hint = e.target.closest('.ai-gen-hint-chip');
+          if (hint) {
+            var idx = parseInt(hint.getAttribute('data-hint'));
+            var prompt = AI_PROMPT_HINTS[idx];
+            aiGenState.prompt = prompt;
+            var promptEl2 = document.getElementById('aiPrompt');
+            var countEl2 = document.getElementById('aiPromptCount');
+            if (promptEl2) promptEl2.value = prompt;
+            if (countEl2) countEl2.textContent = prompt.length;
+          }
+          return;
+        }
+        var action = btn.getAttribute('data-ai-action');
+        var idx2 = parseInt(btn.getAttribute('data-ai-idx'));
+        if (action === 'add') addGeneratedImageToProject(idx2);
+        if (action === 'download') downloadGeneratedImage(idx2);
+        if (action === 'regen') handleAIGenerate();
+      });
+    }
+  }
+
+  function updateAIGenButtons() {
+    var addAllBtn = document.getElementById('aiAddAllBtn');
+    var clearGenBtn = document.getElementById('aiClearGenBtn');
+    if (addAllBtn) addAllBtn.style.display = aiGenState.generatedImages.length > 0 ? 'flex' : 'none';
+    if (clearGenBtn) clearGenBtn.style.display = aiGenState.generatedImages.length > 0 ? 'flex' : 'none';
+  }
+
+  function handleAIGenerate() {
+    if (aiGenState.isGenerating) return;
+    if (!aiGenState.prompt.trim()) { showToast('warning', 'Prompt Required', 'Please enter a description of the image you want to generate.'); return; }
+    if (!window.apiCall) { showToast('error', 'Error', 'API module not available. Make sure you are logged in.'); return; }
+
+    aiGenState.isGenerating = true;
+    aiGenState.progress = 0;
+    aiGenState.generatedImages = [];
+    if (aiGenState.pollTimer) { clearInterval(aiGenState.pollTimer); aiGenState.pollTimer = null; }
+
+    var generateBtn = document.getElementById('aiGenerateBtn');
+    if (generateBtn) generateBtn.classList.add('generating');
+    var preview = document.getElementById('aiPreview');
+    if (preview) preview.innerHTML = renderAIPreviewContent();
+    updateAIGenButtons();
+
+    var body = {
+      prompt: aiGenState.prompt.trim(),
+      style: aiGenState.style,
+      quality: aiGenState.quality,
+      aspect_ratio: aiGenState.aspectRatio,
+      num_variations: aiGenState.numVariations
+    };
+    if (aiGenState.negativePrompt.trim()) body.negative_prompt = aiGenState.negativePrompt.trim();
+    if (aiGenState.seed != null) body.seed = aiGenState.seed;
+
+    window.apiCall('/api/generate/image', {
+      method: 'POST',
+      body: JSON.stringify(body)
+    }).then(function (data) {
+      aiGenState.generationId = data.generation_id;
+      startPollingGeneration();
+    }).catch(function (err) {
+      aiGenState.isGenerating = false;
+      if (generateBtn) generateBtn.classList.remove('generating');
+      showToast('error', 'Generation Failed', err.message || 'Failed to start image generation.');
+      if (preview) preview.innerHTML = renderAIPreviewContent();
+    });
+  }
+
+  function startPollingGeneration() {
+    if (aiGenState.pollTimer) clearInterval(aiGenState.pollTimer);
+    aiGenState.pollTimer = setInterval(function () {
+      if (!aiGenState.generationId) { clearInterval(aiGenState.pollTimer); return; }
+      window.apiCall('/api/generate/image/' + aiGenState.generationId).then(function (data) {
+        if (data.status === 'generating') {
+          aiGenState.progress = data.progress || Math.min(90, aiGenState.progress + 5);
+          var progressEl = document.getElementById('aiGenProgress');
+          if (progressEl) progressEl.textContent = Math.round(aiGenState.progress);
+          var preview = document.getElementById('aiPreview');
+          if (preview) preview.innerHTML = renderAIPreviewContent();
+        } else if (data.status === 'completed') {
+          clearInterval(aiGenState.pollTimer);
+          aiGenState.pollTimer = null;
+          aiGenState.isGenerating = false;
+          aiGenState.progress = 100;
+          var generateBtn = document.getElementById('aiGenerateBtn');
+          if (generateBtn) generateBtn.classList.remove('generating');
+          fetchGeneratedImages(data.images);
+        } else if (data.status === 'failed') {
+          clearInterval(aiGenState.pollTimer);
+          aiGenState.pollTimer = null;
+          aiGenState.isGenerating = false;
+          var generateBtn2 = document.getElementById('aiGenerateBtn');
+          if (generateBtn2) generateBtn2.classList.remove('generating');
+          showToast('error', 'Generation Failed', data.error || 'Image generation failed.');
+          var preview2 = document.getElementById('aiPreview');
+          if (preview2) preview2.innerHTML = renderAIPreviewContent();
+        }
+      }).catch(function (err) {
+        console.error('Poll error:', err);
+      });
+    }, 1000);
+  }
+
+  function fetchGeneratedImages(imageMetas) {
+    if (!imageMetas || !imageMetas.length) { showToast('warning', 'No Images', 'Generation completed but no images were returned.'); return; }
+    var baseUrl = window.getBackendUrl().replace(/\/+$/, '');
+    var promises = [];
+    for (var i = 0; i < imageMetas.length; i++) {
+      (function (meta, index) {
+        var url = baseUrl + meta.url;
+        promises.push(
+          fetch(url, { headers: { 'Authorization': 'Bearer ' + (firebase.auth().currentUser ? 'dummy' : '') } }).then(function (resp) {
+            if (!resp.ok) throw new Error('Failed to fetch image ' + index);
+            return resp.blob();
+          }).then(function (blob) {
+            return new Promise(function (resolve) {
+              var reader = new FileReader();
+              reader.onload = function (e) {
+                resolve({
+                  id: meta.id,
+                  name: 'ai-generated-' + (index + 1) + '.png',
+                  dataUrl: e.target.result,
+                  width: meta.width,
+                  height: meta.height,
+                  rotation: 0,
+                  crop: null,
+                  generated: true
+                });
+              };
+              reader.readAsDataURL(blob);
+            });
+          })
+        );
+      })(imageMetas[i], i);
+    }
+    Promise.all(promises).then(function (results) {
+      aiGenState.generatedImages = results;
+      showToast('success', 'Images Generated', results.length + ' image(s) generated successfully!');
+      var preview = document.getElementById('aiPreview');
+      if (preview) preview.innerHTML = renderAIPreviewContent();
+      updateAIGenButtons();
+    }).catch(function (err) {
+      showToast('error', 'Error', 'Failed to load generated images.');
+      console.error(err);
+    });
+  }
+
+  function addGeneratedImageToProject(idx) {
+    if (idx < 0 || idx >= aiGenState.generatedImages.length) return;
+    var img = aiGenState.generatedImages[idx];
+    createImages.push({
+      id: generateId(), name: img.name, dataUrl: img.dataUrl,
+      width: img.width, height: img.height, rotation: 0, crop: null
+    });
+    renderImageGrid();
+    document.getElementById('imageGridContainer').style.display = 'block';
+    document.getElementById('createSettingsPanel').style.display = 'block';
+    showToast('success', 'Image Added', '"' + img.name + '" added to your project.');
+  }
+
+  function addAllGeneratedToProject() {
+    for (var i = 0; i < aiGenState.generatedImages.length; i++) {
+      var img = aiGenState.generatedImages[i];
+      createImages.push({
+        id: generateId(), name: img.name, dataUrl: img.dataUrl,
+        width: img.width, height: img.height, rotation: 0, crop: null
+      });
+    }
+    renderImageGrid();
+    document.getElementById('imageGridContainer').style.display = 'block';
+    document.getElementById('createSettingsPanel').style.display = 'block';
+    showToast('success', 'All Added', aiGenState.generatedImages.length + ' image(s) added to your project.');
+  }
+
+  function downloadGeneratedImage(idx) {
+    if (idx < 0 || idx >= aiGenState.generatedImages.length) return;
+    var img = aiGenState.generatedImages[idx];
+    var a = document.createElement('a');
+    a.href = img.dataUrl;
+    a.download = img.name;
+    a.click();
+  }
+
+  function bindCreateEvents() {
+    var addMore = document.getElementById("addMoreBtn");
+    if (addMore) addMore.addEventListener("click", function () {
+      if (aiGenState.activeTab === "ai") {
+        aiGenState.activeTab = "upload";
+        var tabs = document.querySelectorAll(".create-tab");
+        for (var i = 0; i < tabs.length; i++) tabs[i].classList.remove("active");
+        var uploadTab = document.querySelector("[data-create-tab='upload']");
+        if (uploadTab) uploadTab.classList.add("active");
+        renderCreateTabContent("upload");
+        setTimeout(function () { var fi = document.getElementById("fileInput"); if (fi) fi.click(); }, 50);
+      } else {
+        var fileInput = document.getElementById("fileInput");
+        if (fileInput) fileInput.click();
+      }
+    });
     var addMore = document.getElementById('addMoreBtn');
     if (addMore) addMore.addEventListener('click', function () { fileInput.click(); });
     var clearBtn = document.getElementById('clearImagesBtn');
