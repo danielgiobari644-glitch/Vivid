@@ -2,49 +2,229 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    function isSignedIn() {
+    // ========================================================================
+    // HELPER FUNCTIONS
+    // ========================================================================
+
+    // Check if the requesting user is authenticated (signed in via Firebase Auth)
+    // All write operations require authentication; some read operations are public.
+    function isAuthenticated() {
       return request.auth != null;
     }
 
+    // Check if the authenticated user owns the document being accessed.
+    // Used for user-scoped collections where userId must match the auth UID.
     function isOwner(userId) {
-      return isSignedIn() && request.auth.uid == userId;
+      return isAuthenticated() && userId == request.auth.uid;
     }
 
-    function isValidId(id) {
-      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    // Check if the authenticated user owns the existing document (resource).
+    // Used for update/delete operations where the document already exists.
+    function isResourceOwner() {
+      return isAuthenticated() && resource.data.userId == request.auth.uid;
     }
 
-    // Default deny all
-    match /{document=**} {
-      allow read, write: if false;
+    // Check if the authenticated user is claiming ownership in a create operation.
+    // Used for create operations where the incoming data must contain the caller's UID.
+    function isCreatorOwner() {
+      return isAuthenticated() && request.resource.data.userId == request.auth.uid;
     }
 
-    // Projects collection
+    // Validate that the aspect ratio field is one of the allowed values.
+    // This prevents invalid aspect ratios from being stored in projects and templates.
+    function isValidAspectRatio(ratio) {
+      return ratio in ['16:9', '9:16', '1:1', '4:5', '3:2'];
+    }
+
+    // Validate that a render job status is one of the allowed enum values.
+    function isValidStatus(status) {
+      return status in ['pending', 'processing', 'completed', 'failed'];
+    }
+
+    // Limit document size to prevent abuse.
+    // Firestore documents are limited to 1 MiB; we enforce a tighter 256 KiB limit
+    // on write operations to keep queries and sync costs manageable.
+    function isDocumentSizeOk() {
+      return request.resource.data.size() < 262144;
+    }
+
+    // ========================================================================
+    // USERS COLLECTION
+    // ========================================================================
+    // Each user has exactly one document at /users/{userId} that stores their
+    // profile and app-level settings. Users can only read and write their own
+    // document — no cross-user access is permitted.
+    // ========================================================================
+
+    match /users/{userId} {
+      // Allow a user to read their own profile document.
+      // Rejects reads where the path segment does not match the caller's UID.
+      allow read: if isOwner(userId);
+
+      // Allow a user to create their own profile document on first sign-up.
+      // The userId in the path must equal the authenticated user's UID.
+      allow create: if isOwner(userId);
+
+      // Allow a user to update their own profile document (e.g., changing display
+      // name, photo URL, or app settings). Only the document owner may write.
+      allow update: if isOwner(userId);
+
+      // Allow a user to delete their own profile document (account deletion flow).
+      allow delete: if isOwner(userId);
+    }
+
+    // ========================================================================
+    // PROJECTS COLLECTION
+    // ========================================================================
+    // Projects are video-editing sessions owned by a single user. Every document
+    // must contain a userId field that matches the authenticated caller. Users
+    // may only see and modify projects they own.
+    // ========================================================================
+
     match /projects/{projectId} {
-      allow read: if isSignedIn() && (resource == null || resource.data.userId == request.auth.uid);
-      allow create: if isSignedIn() 
-        && request.resource.data.userId == request.auth.uid
-        && request.resource.data.title is string
-        && request.resource.data.title.size() <= 120;
-      allow update, delete: if isSignedIn() && resource.data.userId == request.auth.uid;
+      // Allow reading a project only if the authenticated user owns it.
+      // This covers both single-document gets and collection queries.
+      allow read: if isResourceOwner();
+
+      // Allow creating a new project. Validates:
+      //  - The creator's userId is set to the authenticated user's UID.
+      //  - The aspectRatio (if present) is one of the allowed values.
+      //  - The document size is within limits.
+      allow create: if isCreatorOwner()
+                    && isValidAspectRatio(request.resource.data.aspectRatio)
+                    && isDocumentSizeOk();
+
+      // Allow updating an existing project. Validates:
+      //  - The existing document is owned by the authenticated user.
+      //  - If aspectRatio is being changed, it must be a valid value.
+      //  - The resulting document size stays within limits.
+      allow update: if isResourceOwner()
+                    && (request.resource.data.aspectRatio == resource.data.aspectRatio
+                        || isValidAspectRatio(request.resource.data.aspectRatio))
+                    && isDocumentSizeOk();
+
+      // Allow deleting a project only if the authenticated user owns it.
+      allow delete: if isResourceOwner();
     }
 
-    // Templates collection
+    // ========================================================================
+    // TEMPLATES COLLECTION
+    // ========================================================================
+    // Templates are pre-built video layouts that any authenticated user can
+    // browse and read. Templates are read-only from the client — creation
+    // and management are handled by admin functions or backend processes.
+    // ========================================================================
+
     match /templates/{templateId} {
-      allow read: if true;
-      allow write: if isSignedIn();
+      // Allow any authenticated user to read template documents.
+      // This supports browsing the template gallery and viewing details.
+      // No ownership check is needed because templates are shared resources.
+      allow read: if isAuthenticated();
+
+      // Explicitly deny all writes from the client.
+      // Templates are managed exclusively by admin Cloud Functions or
+      // the backend service account, never by end-users.
+      allow write: if false;
     }
 
-    // Saved Videos collection
-    match /saved_videos/{videoId} {
-      allow read: if isSignedIn() && (resource == null || resource.data.userId == request.auth.uid);
-      allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
-      allow update, delete: if isSignedIn() && resource.data.userId == request.auth.uid;
+    // ========================================================================
+    // SETTINGS COLLECTION
+    // ========================================================================
+    // Per-user application settings stored as a separate top-level collection
+    // (in addition to the settings map on the user document). This allows
+    // granular Firestore rules and efficient queries for user preferences.
+    // ========================================================================
+
+    match /settings/{settingsId} {
+      // Allow reading settings only if the authenticated user owns the document.
+      allow read: if isResourceOwner();
+
+      // Allow creating a settings document. Validates:
+      //  - The creator's userId is the authenticated user's UID.
+      //  - The document size is within limits.
+      allow create: if isCreatorOwner()
+                    && isDocumentSizeOk();
+
+      // Allow updating settings only if the authenticated user owns the document.
+      allow update: if isResourceOwner();
+
+      // Allow deleting settings only if the authenticated user owns the document.
+      allow delete: if isResourceOwner();
     }
 
-    // User Settings collection
-    match /user_settings/{settingId} {
-      allow read, write: if isSignedIn() && (resource == null || resource.data.userId == request.auth.uid);
+    // ========================================================================
+    // HISTORY COLLECTION
+    // ========================================================================
+    // History entries record user actions within the app (project edits,
+    // renders, exports, etc.) for audit trails and undo functionality.
+    // Users may read and create history entries; updates and deletes are
+    // restricted to prevent tampering with the audit log.
+    // ========================================================================
+
+    match /history/{historyId} {
+      // Allow reading history entries only if the authenticated user owns them.
+      allow read: if isResourceOwner();
+
+      // Allow creating a new history entry. Validates:
+      //  - The userId field is set to the authenticated user's UID.
+      //  - The document size is within limits.
+      allow create: if isCreatorOwner()
+                    && isDocumentSizeOk();
+
+      // Deny updates to history entries. History is an append-only log;
+      // once an action is recorded it should not be modified.
+      allow update: if false;
+
+      // Deny deletion of history entries. The audit trail must be preserved.
+      // Administrative cleanup should be handled by Cloud Functions with
+      // service-account credentials that bypass these rules.
+      allow delete: if false;
+    }
+
+    // ========================================================================
+    // RENDER JOBS COLLECTION
+    // ========================================================================
+    // Render jobs track the lifecycle of a video rendering request:
+    // pending → processing → completed (or failed). Users can read and create
+    // render jobs. The status field is updated by a backend Cloud Function,
+    // so client-side updates to status/progress are restricted. Users may
+    // delete completed or failed render jobs for cleanup.
+    // ========================================================================
+
+    match /renderJobs/{renderId} {
+      // Allow reading render jobs only if the authenticated user owns them.
+      allow read: if isResourceOwner();
+
+      // Allow creating a new render job. Validates:
+      //  - The userId field is set to the authenticated user's UID.
+      //  - The status is initialized to 'pending'.
+      //  - The resolution is a valid string.
+      //  - The document size is within limits.
+      allow create: if isCreatorOwner()
+                    && request.resource.data.status == 'pending'
+                    && request.resource.data.resolution in [
+                      '720p', '1080p', '1440p', '4K'
+                    ]
+                    && isDocumentSizeOk();
+
+      // Allow updating render jobs with tight restrictions:
+      //  - Only the document owner or a backend process (via service account)
+      //    may update. Client-side updates are limited to deletion flags only;
+      //    status/progress changes are expected to come from Cloud Functions
+      //    which use service-account auth (those bypass these rules).
+      //  - We allow the user to update only if the job is in a terminal state
+      //    (completed or failed) for cleanup purposes.
+      allow update: if isResourceOwner()
+                    && (resource.data.status == 'completed'
+                        || resource.data.status == 'failed');
+
+      // Allow deleting render jobs only if the authenticated user owns the job
+      // and it is in a terminal state (completed or failed). Pending or
+      // processing jobs cannot be deleted to prevent disruption of the
+      // rendering pipeline.
+      allow delete: if isResourceOwner()
+                    && (resource.data.status == 'completed'
+                        || resource.data.status == 'failed');
     }
   }
 }

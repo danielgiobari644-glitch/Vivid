@@ -1,0 +1,4 @@
+/auth/login    /auth/login.html    200
+/auth/register  /auth/register.html  200
+/auth/forgot-password /auth/forgot-password.html 200
+/*             /index.html          404

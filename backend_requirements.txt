@@ -1,0 +1,13 @@
+fastapi==0.104.1
+uvicorn==0.24.0
+python-multipart==0.0.6
+moviepy==1.0.3
+Pillow==10.1.0
+opencv-python-headless==4.8.1.78
+numpy==1.26.2
+firebase-admin==6.3.0
+pydantic==2.5.2
+pydantic-settings==2.1.0
+python-jose[cryptography]==3.3.0
+aiofiles==23.2.1
+httpx==0.25.2

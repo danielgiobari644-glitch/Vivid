@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>GIODAI - Turn Images Into Cinematic Videos</title>
+  <meta name="description" content="GIODAI is a premium AI-powered creative platform that transforms images into professional videos.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/main.css">
+  <link rel="stylesheet" href="css/components.css">
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E🎬%3C/text%3E%3C/svg%3E">
+</head>
+<body>
+  <!-- Splash Screen -->
+  <div class="splash-screen" id="splashScreen">
+    <div class="splash-logo">GIODAI</div>
+    <div class="splash-tagline">Turn Images Into Cinematic Videos.</div>
+    <div class="splash-loader"></div>
+  </div>
+
+  <!-- Landing Page -->
+  <div class="landing-page" id="landingPage" style="opacity:0">
+    <!-- Navigation -->
+    <nav class="landing-nav" id="landingNav">
+      <div class="landing-nav-logo">GIODAI</div>
+      <div class="landing-nav-links">
+        <a href="#features">Features</a>
+        <a href="#templates">Templates</a>
+        <a href="#pricing">Pricing</a>
+      </div>
+      <div class="landing-nav-actions">
+        <button class="btn btn-ghost" style="color:rgba(255,255,255,0.7)" onclick="window.location.href='auth/login.html'">Sign In</button>
+        <button class="btn btn-landing-primary" onclick="window.location.href='auth/register.html'">Get Started Free</button>
+      </div>
+    </nav>
+
+    <!-- Hero Section -->
+    <section class="landing-hero">
+      <div class="landing-hero-bg">
+        <div class="landing-hero-bg-orb"></div>
+        <div class="landing-hero-bg-orb"></div>
+        <div class="landing-hero-bg-orb"></div>
+      </div>
+      <div class="landing-hero-content">
+        <div class="landing-hero-badge">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+          AI-Powered Video Creation
+        </div>
+        <h1>Transform Your Images Into <span>Cinematic Videos</span></h1>
+        <p>Create stunning professional videos from your images in minutes. Ken Burns effects, smooth transitions, text overlays, and music — all powered by AI.</p>
+        <div class="landing-hero-cta">
+          <button class="btn-landing-primary" onclick="window.location.href='auth/register.html'">
+            Start Creating Free
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+          </button>
+          <button class="btn-landing-secondary" onclick="document.getElementById('features').scrollIntoView({behavior:'smooth'})">See How It Works</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- Features Section -->
+    <section class="landing-features" id="features">
+      <div class="landing-section-label">Features</div>
+      <h2>Everything You Need to Create Amazing Videos</h2>
+      <p>Professional-grade video creation tools, designed for creators, churches, and content creators.</p>
+      <div class="features-grid">
+        <div class="feature-card">
+          <div class="feature-card-icon" style="background:rgba(108,92,231,0.1);color:var(--color-primary)">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+          </div>
+          <h3>Image to Video</h3>
+          <p>Upload multiple images and transform them into stunning videos with professional effects and smooth transitions between each frame.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-card-icon" style="background:rgba(0,206,201,0.1);color:var(--color-secondary)">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
+          </div>
+          <h3>Ken Burns Effects</h3>
+          <p>Add cinematic Ken Burns zoom and pan effects to your images, creating dynamic and engaging visual storytelling that captivates your audience.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-card-icon" style="background:rgba(253,121,168,0.1);color:var(--color-accent)">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+          </div>
+          <h3>Text Overlays</h3>
+          <p>Add titles, captions, and subtitles with beautiful fonts, colors, shadows, and animations. Position text anywhere on the canvas.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-card-icon" style="background:rgba(0,184,148,0.1);color:var(--color-success)">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>
+          </div>
+          <h3>Background Music</h3>
+          <p>Upload your own music or add background tracks with volume controls, fade in/out effects, and precise audio trimming.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-card-icon" style="background:rgba(253,203,110,0.15);color:var(--color-warning-dark)">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="7" width="20" height="15" rx="2" ry="2"/><polyline points="17 2 12 7 7 2"/></svg>
+          </div>
+          <h3>Multiple Formats</h3>
+          <p>Export in 720p, 1080p, or 4K resolution. Support for 16:9, 9:16, 1:1, 4:5, and 3:2 aspect ratios for every platform.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-card-icon" style="background:rgba(116,185,255,0.1);color:var(--color-info-dark)">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg>
+          </div>
+          <h3>Pro Templates</h3>
+          <p>Start with professional templates for YouTube Shorts, TikTok, Instagram Reels, church announcements, and more. Edit everything to match your style.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="landing-footer">
+      <div class="landing-footer-logo">GIODAI</div>
+      <p>Turn Images Into Cinematic Videos.</p>
+      <div class="landing-footer-links">
+        <a href="#">Privacy Policy</a>
+        <a href="#">Terms of Service</a>
+        <a href="#">Contact</a>
+      </div>
+      <p style="margin-top:var(--space-4)">&copy; 2024 GIODAI. All rights reserved.</p>
+    </footer>
+  </div>
+
+  <script>
+    // Splash screen animation
+    window.addEventListener('load', () => {
+      setTimeout(() => {
+        document.getElementById('splashScreen').classList.add('hidden');
+        document.getElementById('landingPage').style.opacity = '1';
+        document.getElementById('landingPage').style.transition = 'opacity 0.5s ease';
+      }, 1500);
+    });
+
+    // Scroll effect for nav
+    window.addEventListener('scroll', () => {
+      const nav = document.getElementById('landingNav');
+      if (window.scrollY > 50) {
+        nav.classList.add('scrolled');
+      } else {
+        nav.classList.remove('scrolled');
+      }
+    });
+  </script>
+</body>
+</html>

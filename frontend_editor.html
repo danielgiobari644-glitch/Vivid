@@ -1,0 +1,474 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Video Editor - GIODAI</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Playfair+Display:wght@700&family=Roboto+Mono:wght@400;700&family=Oswald:wght@700&family=Dancing+Script:wght@700&family=Montserrat:wght@700&family=Lora:wght@700&family=Poppins:wght@700&family=Raleway:wght@700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/variables.css">
+  <link rel="stylesheet" href="css/main.css">
+  <link rel="stylesheet" href="css/editor.css">
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E🎬%3C/text%3E%3C/svg%3E">
+</head>
+<body>
+  <div class="editor-layout">
+    <!-- Toolbar -->
+    <div class="editor-toolbar">
+      <div class="editor-toolbar-left">
+        <div class="editor-back-btn" onclick="saveAndExit()">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
+          <span>Dashboard</span>
+        </div>
+        <div class="editor-toolbar-divider"></div>
+        <input type="text" class="editor-project-name" id="projectName" value="Untitled Project">
+      </div>
+      <div class="editor-toolbar-center">
+        <div class="editor-toolbar-btn" id="undoBtn" title="Undo" disabled>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>
+        </div>
+        <div class="editor-toolbar-btn" id="redoBtn" title="Redo" disabled>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+        </div>
+        <div class="editor-toolbar-divider"></div>
+        <div class="editor-toolbar-btn" id="zoomOutBtn" title="Zoom Out">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/><line x1="8" y1="11" x2="14" y2="11"/></svg>
+        </div>
+        <div class="editor-zoom-control">
+          <span id="zoomLevel">100%</span>
+        </div>
+        <div class="editor-toolbar-btn" id="zoomInBtn" title="Zoom In">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/><line x1="11" y1="8" x2="11" y2="14"/><line x1="8" y1="11" x2="14" y2="11"/></svg>
+        </div>
+      </div>
+      <div class="editor-toolbar-right">
+        <div class="editor-toolbar-btn" id="saveBtn" title="Save (Ctrl+S)">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+        </div>
+        <div class="editor-toolbar-btn" id="previewBtn" title="Preview">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+        </div>
+        <button class="btn btn-primary btn-sm" id="exportBtn">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          Export
+        </button>
+      </div>
+    </div>
+
+    <!-- Main Editor Area -->
+    <div class="editor-main">
+      <!-- Left Panel -->
+      <div class="editor-panel-left" id="panelLeft">
+        <div class="editor-panel-tabs">
+          <div class="editor-panel-tab active" data-panel="media">Media</div>
+          <div class="editor-panel-tab" data-panel="layers">Layers</div>
+          <div class="editor-panel-tab" data-panel="audio">Audio</div>
+          <div class="editor-panel-tab" data-panel="text">Text</div>
+        </div>
+        <div class="editor-panel-content">
+          <!-- Media Panel -->
+          <div id="mediaPanel">
+            <div class="media-upload-zone" id="mediaUploadZone">
+              <div class="media-upload-icon">
+                <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+              </div>
+              <div class="media-upload-text">Drop images here</div>
+              <div class="media-upload-hint">or click to browse</div>
+            </div>
+            <input type="file" id="imageFileInput" accept="image/*" multiple style="display:none">
+            <div class="media-grid" id="mediaGrid"></div>
+          </div>
+
+          <!-- Layers Panel -->
+          <div id="layersPanel" style="display:none">
+            <div class="layer-item" id="addTextLayerBtn" style="cursor:pointer;margin-bottom:var(--space-3)">
+              <div class="layer-thumb" style="display:flex;align-items:center;justify-content:center;background:rgba(var(--color-accent-rgb),0.1)">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--color-accent)" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+              </div>
+              <div class="layer-info">
+                <div class="layer-name" style="color:var(--color-accent)">Add Text Layer</div>
+              </div>
+            </div>
+            <div id="layersList"></div>
+          </div>
+
+          <!-- Audio Panel -->
+          <div id="audioPanel" style="display:none">
+            <div class="audio-upload-zone" id="audioUploadZone">
+              <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color:var(--color-secondary);margin-bottom:var(--space-2)"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>
+              <div style="font-size:var(--font-size-sm);color:var(--text-secondary)">Drop audio file here</div>
+              <div style="font-size:var(--font-size-xs);color:var(--text-tertiary)">MP3, WAV, OGG</div>
+            </div>
+            <input type="file" id="audioFileInput" accept="audio/*" style="display:none">
+            <div id="audioTrackList" style="margin-top:var(--space-3)"></div>
+            <div id="audioControls" style="display:none;margin-top:var(--space-4)">
+              <div class="inspector-section">
+                <div class="inspector-section-header">Volume</div>
+                <div class="inspector-row">
+                  <input type="range" class="range-slider" id="audioVolume" min="0" max="100" value="80">
+                  <span id="audioVolumeVal" style="font-size:var(--font-size-xs);color:var(--text-tertiary);min-width:30px;text-align:right">80%</span>
+                </div>
+              </div>
+              <div class="inspector-section">
+                <div class="inspector-section-header">Fade In</div>
+                <div class="inspector-row">
+                  <input type="range" class="range-slider" id="audioFadeIn" min="0" max="5" step="0.1" value="0">
+                  <span id="audioFadeInVal" style="font-size:var(--font-size-xs);color:var(--text-tertiary);min-width:30px;text-align:right">0s</span>
+                </div>
+              </div>
+              <div class="inspector-section">
+                <div class="inspector-section-header">Fade Out</div>
+                <div class="inspector-row">
+                  <input type="range" class="range-slider" id="audioFadeOut" min="0" max="5" step="0.1" value="0">
+                  <span id="audioFadeOutVal" style="font-size:var(--font-size-xs);color:var(--text-tertiary);min-width:30px;text-align:right">0s</span>
+                </div>
+              </div>
+              <div class="inspector-section">
+                <div class="inspector-section-header">Trim</div>
+                <div class="inspector-row">
+                  <span class="inspector-row-label">Start</span>
+                  <input type="text" class="inspector-row-input" id="audioTrimStart" value="0.0s" style="width:60px">
+                  <span class="inspector-row-label" style="min-width:30px">End</span>
+                  <input type="text" class="inspector-row-input" id="audioTrimEnd" value="0.0s" style="width:60px">
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Text Panel -->
+          <div id="textPanel" style="display:none">
+            <div style="margin-bottom:var(--space-3)">
+              <button class="btn btn-accent btn-sm w-full" id="addTitleBtn">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                Add Title
+              </button>
+            </div>
+            <div style="margin-bottom:var(--space-3)">
+              <button class="btn btn-secondary btn-sm w-full" id="addCaptionBtn">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                Add Caption
+              </button>
+            </div>
+            <div style="margin-bottom:var(--space-3)">
+              <button class="btn btn-secondary btn-sm w-full" id="addSubtitleBtn">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                Add Subtitle
+              </button>
+            </div>
+            <div id="textLayerList" style="margin-top:var(--space-4)"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Center Preview -->
+      <div class="editor-preview-area" id="previewArea">
+        <div class="editor-preview-wrapper aspect-16-9" id="previewWrapper">
+          <div class="editor-preview-canvas" id="previewCanvas">
+            <div class="empty-state" id="previewEmpty" style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;color:rgba(255,255,255,0.3)">
+              <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+              <span style="margin-top:var(--space-2);font-size:var(--font-size-sm)">Add images to get started</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Right Panel (Inspector) -->
+      <div class="editor-panel-right" id="panelRight">
+        <div class="inspector-header" id="inspectorHeader">Properties</div>
+        <div class="inspector-content" id="inspectorContent">
+          <div id="noSelectionHint" class="empty-state" style="padding:var(--space-8) var(--space-4)">
+            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="var(--text-disabled)" stroke-width="1.5"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9c.26.604.852 1.001 1.51 1H21a2 2 0 0 1 0 4h-.09c-.658.001-1.25.396-1.51 1z"/></svg>
+            <p style="font-size:var(--font-size-sm);color:var(--text-tertiary);margin:var(--space-3) 0 0">Select an element to edit its properties</p>
+          </div>
+
+          <!-- Image Properties (hidden by default) -->
+          <div id="imageProperties" style="display:none">
+            <div class="inspector-section">
+              <div class="inspector-section-header">Transform</div>
+              <div class="inspector-row">
+                <span class="inspector-row-label">Duration</span>
+                <input type="text" class="inspector-row-input" id="propDuration" value="3.0s">
+              </div>
+              <div class="inspector-row">
+                <span class="inspector-row-label">Rotation</span>
+                <input type="range" class="range-slider" id="propRotation" min="0" max="360" value="0">
+                <span id="propRotationVal" style="font-size:var(--font-size-xs);color:var(--text-tertiary);min-width:30px;text-align:right">0°</span>
+              </div>
+              <div class="inspector-row">
+                <span class="inspector-row-label">Zoom</span>
+                <input type="range" class="range-slider" id="propZoom" min="100" max="200" value="100">
+                <span id="propZoomVal" style="font-size:var(--font-size-xs);color:var(--text-tertiary);min-width:30px;text-align:right">100%</span>
+              </div>
+            </div>
+            <div class="inspector-section">
+              <div class="inspector-section-header">Effect</div>
+              <div class="animation-grid" id="effectGrid">
+                <div class="animation-option active" data-effect="none">None</div>
+                <div class="animation-option" data-effect="ken_burns">Ken Burns</div>
+                <div class="animation-option" data-effect="smooth_zoom">Smooth Zoom</div>
+                <div class="animation-option" data-effect="pan_left">Pan Left</div>
+                <div class="animation-option" data-effect="pan_right">Pan Right</div>
+                <div class="animation-option" data-effect="pan_up">Pan Up</div>
+                <div class="animation-option" data-effect="pan_down">Pan Down</div>
+                <div class="animation-option" data-effect="zoom_in">Zoom In</div>
+                <div class="animation-option" data-effect="zoom_out">Zoom Out</div>
+              </div>
+            </div>
+            <div class="inspector-section">
+              <div class="inspector-section-header">Transition</div>
+              <div class="animation-grid" id="transitionGrid">
+                <div class="animation-option active" data-transition="none">None</div>
+                <div class="animation-option" data-transition="fade">Fade</div>
+                <div class="animation-option" data-transition="slide_left">Slide L</div>
+                <div class="animation-option" data-transition="slide_right">Slide R</div>
+                <div class="animation-option" data-transition="blur">Blur</div>
+                <div class="animation-option" data-transition="crossfade">Crossfade</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Text Properties (hidden by default) -->
+          <div id="textProperties" style="display:none">
+            <div class="inspector-section">
+              <div class="inspector-section-header">Content</div>
+              <div class="inspector-row" style="flex-direction:column;align-items:stretch;gap:var(--space-2)">
+                <textarea class="form-textarea" id="propTextContent" rows="3" placeholder="Enter text..." style="min-height:60px"></textarea>
+              </div>
+            </div>
+            <div class="inspector-section">
+              <div class="inspector-section-header">Typography</div>
+              <div class="inspector-row">
+                <span class="inspector-row-label">Font</span>
+                <select class="inspector-row-select" id="propFontFamily">
+                  <option value="Inter">Inter</option>
+                  <option value="Playfair Display">Playfair Display</option>
+                  <option value="Montserrat">Montserrat</option>
+                  <option value="Poppins">Poppins</option>
+                  <option value="Oswald">Oswald</option>
+                  <option value="Raleway">Raleway</option>
+                  <option value="Lora">Lora</option>
+                  <option value="Dancing Script">Dancing Script</option>
+                  <option value="Roboto Mono">Roboto Mono</option>
+                  <option value="Georgia">Georgia</option>
+                  <option value="Arial">Arial</option>
+                </select>
+              </div>
+              <div class="inspector-row">
+                <span class="inspector-row-label">Size</span>
+                <input type="range" class="range-slider" id="propFontSize" min="12" max="120" value="32">
+                <span id="propFontSizeVal" style="font-size:var(--font-size-xs);color:var(--text-tertiary);min-width:30px;text-align:right">32px</span>
+              </div>
+              <div class="inspector-row">
+                <span class="inspector-row-label">Color</span>
+                <input type="color" class="inspector-color-input" id="propFontColor" value="#ffffff">
+              </div>
+              <div class="inspector-row">
+                <span class="inspector-row-label">Bold</span>
+                <label class="toggle" style="margin-left:auto">
+                  <input type="checkbox" id="propFontBold">
+                  <span class="toggle-slider"></span>
+                </label>
+              </div>
+              <div class="inspector-row">
+                <span class="inspector-row-label">Italic</span>
+                <label class="toggle" style="margin-left:auto">
+                  <input type="checkbox" id="propFontItalic">
+                  <span class="toggle-slider"></span>
+                </label>
+              </div>
+            </div>
+            <div class="inspector-section">
+              <div class="inspector-section-header">Style</div>
+              <div class="inspector-row">
+                <span class="inspector-row-label">Shadow</span>
+                <label class="toggle" style="margin-left:auto">
+                  <input type="checkbox" id="propTextShadow">
+                  <span class="toggle-slider"></span>
+                </label>
+              </div>
+              <div class="inspector-row">
+                <span class="inspector-row-label">Outline</span>
+                <label class="toggle" style="margin-left:auto">
+                  <input type="checkbox" id="propTextOutline">
+                  <span class="toggle-slider"></span>
+                </label>
+              </div>
+              <div class="inspector-row" id="outlineColorRow" style="display:none">
+                <span class="inspector-row-label">Out. Color</span>
+                <input type="color" class="inspector-color-input" id="propOutlineColor" value="#000000">
+              </div>
+            </div>
+            <div class="inspector-section">
+              <div class="inspector-section-header">Position & Timing</div>
+              <div class="inspector-row">
+                <span class="inspector-row-label">X</span>
+                <input type="text" class="inspector-row-input" id="propTextX" value="50" style="width:60px">
+                <span class="inspector-row-label">Y</span>
+                <input type="text" class="inspector-row-input" id="propTextY" value="50" style="width:60px">
+              </div>
+              <div class="inspector-row">
+                <span class="inspector-row-label">Start</span>
+                <input type="text" class="inspector-row-input" id="propTextStart" value="0.0s" style="width:60px">
+                <span class="inspector-row-label">End</span>
+                <input type="text" class="inspector-row-input" id="propTextEnd" value="3.0s" style="width:60px">
+              </div>
+            </div>
+            <div class="inspector-section">
+              <div class="inspector-section-header">Animation</div>
+              <div class="animation-grid" id="textAnimGrid">
+                <div class="animation-option active" data-anim="none">None</div>
+                <div class="animation-option" data-anim="fade_in">Fade In</div>
+                <div class="animation-option" data-anim="fade_out">Fade Out</div>
+                <div class="animation-option" data-anim="typewriter">Typewriter</div>
+                <div class="animation-option" data-anim="slide_up">Slide Up</div>
+                <div class="animation-option" data-anim="scale_in">Scale In</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Project Settings (always visible) -->
+          <div class="inspector-section">
+            <div class="inspector-section-header">Aspect Ratio</div>
+            <div class="aspect-ratio-selector" id="aspectRatioSelector">
+              <div class="aspect-ratio-btn active" data-ratio="16:9">16:9</div>
+              <div class="aspect-ratio-btn" data-ratio="9:16">9:16</div>
+              <div class="aspect-ratio-btn" data-ratio="1:1">1:1</div>
+              <div class="aspect-ratio-btn" data-ratio="4:5">4:5</div>
+              <div class="aspect-ratio-btn" data-ratio="3:2">3:2</div>
+            </div>
+          </div>
+          <div class="inspector-section">
+            <div class="inspector-section-header">Background</div>
+            <div class="inspector-row">
+              <span class="inspector-row-label">Color</span>
+              <input type="color" class="inspector-color-input" id="propBgColor" value="#000000">
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Timeline -->
+    <div class="editor-timeline">
+      <div class="timeline-header">
+        <div class="timeline-controls">
+          <div class="timeline-control-btn" id="playBtn" title="Play/Pause">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+          </div>
+          <div class="timeline-control-btn" id="stopBtn" title="Stop">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="6" width="12" height="12"/></svg>
+          </div>
+          <div class="timeline-time" id="currentTime">00:00.00</div>
+          <span style="color:var(--text-disabled)">/</span>
+          <div class="timeline-time" id="totalTime">00:00.00</div>
+        </div>
+        <div class="editor-zoom-control">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/><line x1="8" y1="11" x2="14" y2="11"/><line x1="11" y1="8" x2="11" y2="14"/></svg>
+          <span id="timelineZoom">100%</span>
+        </div>
+      </div>
+      <div class="timeline-body">
+        <div class="timeline-tracks-label">
+          <div class="timeline-track-label" style="font-weight:var(--font-weight-medium);color:var(--text-primary)">Video</div>
+          <div class="timeline-track-label">Text</div>
+          <div class="timeline-track-label">Audio</div>
+        </div>
+        <div class="timeline-tracks" id="timelineTracks">
+          <div class="timeline-ruler" id="timelineRuler"></div>
+          <div class="timeline-track" id="videoTrack"></div>
+          <div class="timeline-track" id="textTrack"></div>
+          <div class="timeline-track" id="audioTrack"></div>
+          <div class="timeline-playhead" id="timelinePlayhead" style="left:0"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Container -->
+  <div class="toast-container" id="toastContainer"></div>
+
+  <!-- Export Modal -->
+  <div class="modal-overlay" id="exportModal">
+    <div class="modal modal-md">
+      <div class="modal-header">
+        <h3 class="modal-title">Export Video</h3>
+        <div class="modal-close" id="exportModalClose">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </div>
+      </div>
+      <div class="modal-body" id="exportModalBody">
+        <div class="export-options" id="exportOptions">
+          <div class="form-group">
+            <label class="form-label">Resolution</label>
+            <div class="export-resolution-options">
+              <div class="export-resolution-option" data-res="720p">
+                <h4>720p</h4>
+                <p>HD Quality</p>
+              </div>
+              <div class="export-resolution-option active" data-res="1080p">
+                <h4>1080p</h4>
+                <p>Full HD</p>
+              </div>
+              <div class="export-resolution-option" data-res="4k">
+                <h4>4K</h4>
+                <p>Ultra HD</p>
+              </div>
+            </div>
+          </div>
+          <button class="btn btn-primary btn-lg w-full" id="startExportBtn">Start Rendering</button>
+        </div>
+        <div class="export-progress" id="exportProgress" style="display:none">
+          <div class="export-progress-percentage" id="exportPercentage">0%</div>
+          <div class="export-progress-status" id="exportStatus">Preparing...</div>
+          <div class="progress progress-lg progress-animated">
+            <div class="progress-bar" id="exportProgressBar" style="width:0%"></div>
+          </div>
+        </div>
+        <div id="exportComplete" style="display:none;text-align:center;padding:var(--space-6) 0">
+          <div style="width:64px;height:64px;background:rgba(0,184,148,0.1);border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto var(--space-4);color:var(--color-success)">
+            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+          </div>
+          <h3 style="margin-bottom:var(--space-2)">Export Complete!</h3>
+          <p style="color:var(--text-tertiary);font-size:var(--font-size-sm);margin-bottom:var(--space-5)">Your video is ready for download.</p>
+          <button class="btn btn-primary" id="downloadBtn">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            Download MP4
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Crop Modal -->
+  <div class="modal-overlay" id="cropModal">
+    <div class="modal modal-lg">
+      <div class="modal-header">
+        <h3 class="modal-title">Crop & Rotate</h3>
+        <div class="modal-close" onclick="closeModal('cropModal')">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </div>
+      </div>
+      <div class="modal-body">
+        <div style="display:flex;justify-content:center;margin-bottom:var(--space-4)">
+          <canvas id="cropCanvas" style="max-width:100%;max-height:400px;border-radius:var(--radius-md)"></canvas>
+        </div>
+        <div class="inspector-row">
+          <span class="inspector-row-label">Rotation</span>
+          <input type="range" class="range-slider" id="cropRotation" min="0" max="360" value="0">
+          <span id="cropRotationVal" style="font-size:var(--font-size-xs);color:var(--text-tertiary);min-width:30px;text-align:right">0°</span>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" onclick="closeModal('cropModal')">Cancel</button>
+        <button class="btn btn-primary" id="applyCropBtn">Apply</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="js/firebase-init.js"></script>
+  <script src="js/utils.js"></script>
+  <script src="js/auth.js"></script>
+  <script src="js/editor.js"></script>
+</body>
+</html>
